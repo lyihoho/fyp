@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 data/
+venv/
 .env
 .vscode/
 __pycache__/
