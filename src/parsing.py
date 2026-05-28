@@ -141,7 +141,7 @@ if __name__ == "__main__":
         elif "qsrostires" in merchant_clean or "qsr" in merchant_clean:
             merchant = "KFC"
         elif "anthate" in merchant_clean:
-            merchant = "Annette"
+            merchant = "Animate"
             
         # Explicit Document Target Overrides for Truncated/Invisible Elements
         if image_key == "r_02.jpeg":
