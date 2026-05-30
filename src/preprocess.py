@@ -1,131 +1,105 @@
 import cv2
-import os
 import numpy as np
+import os
+import sys
 
-def deskew_image(img):
+def deskew_image(gray_img):
     """
-    Corrects image alignment angles dynamically by targeting dark text foreground pixels
-    instead of the bright background canvas.
+    Computes the structural text line orientation angle using Hough Line Transform
+    and applies an affine rotation matrix to align the canvas back to a true 0-degree baseline.
     """
-    # Since background is light (~255) and text is dark (~0), we target pixels below 
-    # a dark threshold to isolate true text point coordinates.
-    coords = np.column_stack(np.where(img < 100))
-    if len(coords) == 0:
-        return img
+    # Use Canny edge detection to highlight text contours
+    edges = cv2.Canny(gray_img, 50, 150, apertureSize=3)
+    
+    # Run Hough Lines to isolate dominant horizontal linear orientations
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=100, minLineLength=100, maxLineGap=10)
+    
+    angles = []
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = np.arctan2(y2 - y1, x2 - x1) * 180.0 / np.pi
+            # Filter out extreme vertical angles to focus purely on text row tilt
+            if -45 < angle < 45:
+                angles.append(angle)
+                
+    # If a valid skew angle is captured, rotate the entire document frame
+    if len(angles) > 0:
+        median_angle = np.median(angles)
+        if abs(median_angle) > 0.5:  # Only rotate if the displacement is significant
+            h, w = gray_img.shape[:2]
+            center = (w // 2, h // 2)
+            rotation_matrix = cv2.getRotationMatrix2D(center, median_angle, 1.0)
+            rotated_img = cv2.warpAffine(gray_img, rotation_matrix, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            return rotated_img
+            
+    return gray_img
+
+def enhance_full_frame_with_geometry(image_path):
+    """
+    Applies an advanced multi-stage geometric and structural conditioning pipeline:
+    Grayscale -> Multi-Line Deskewing -> Bi-Cubic Scale Standardization.
+    Preserves organic textures while bringing characters to ideal OCR dimensions.
+    """
+    # Load raw input image matrix from the file path
+    orig_img = cv2.imread(image_path)
+    if orig_img is None:
+        print(f"  [WARNING] Unable to read image matrix: {image_path}")
+        return None
         
-    # Get the minimum bounding rectangle around the isolated text coordinate clusters
-    rect = cv2.minAreaRect(coords)
-    angle = rect[-1]
-    (w, h) = rect[1]
-
-    # Modern OpenCV normalization tracking logic adjustments
-    if w < h:
-        angle = angle - 90
-    else:
-        angle = angle
-
-    # Keep rotations minimal (clamp down massive flips)
-    if angle < -45:
-        angle = +(90 + angle)
-    else:
-        angle = -angle
-
-    # Limit maximum rotation correction to 15 degrees to avoid accidental sideways flips on square images
-    if abs(angle) > 15:
-        angle = 0.0
-
-    (h, w) = img.shape[:2]
-    center = (w // 2, h // 2)
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    # --- STEP 1: CHROMATIC REDUCTION (GRAYSCALE) ---
+    gray = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
     
-    # Use INTER_CUBIC for clean rotation reconstruction, filling borders with pristine white
-    rotated = cv2.warpAffine(
-        img, M, (w, h),
-        flags=cv2.INTER_CUBIC,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=255
-    )
-    return rotated
+    # --- STEP 2: MULTI-LINE ORIENTATION DESKEWING (UPGRADED) ---
+    # Dynamically straightens slanted or tilted handheld captures
+    deskewed = deskew_image(gray)
 
-def resize_image(img, width=1500):
-    """
-    Upscales tiny thermal fonts cleanly using Lanczos neighborhood calculations
-    to avoid character fragmentation.
-    """
-    h, w = img.shape[:2]
-    ratio = width / w
-    dim = (width, int(h * ratio))
+    # --- STEP 3: BI-CUBIC RESIZING AND SPATIAL SCALE STANDARDIZATION (UPGRADED) ---
+    # Standardizes the input canvas to an optimal resolution scale for OCR text recognition.
+    # We upscale the image smoothly by a scale factor of 1.5x using high-quality cubic interpolation.
+    h, w = deskewed.shape[:2]
+    target_width = int(w * 1.5)
+    target_height = int(h * 1.5)
+    resized_grayscale = cv2.resize(deskewed, (target_width, target_height), interpolation=cv2.INTER_CUBIC)
     
-    # Swapped INTER_LINEAR out for INTER_LANCZOS4 to create crisper anti-aliased font edges
-    resized = cv2.resize(img, dim, interpolation=cv2.INTER_LANCZOS4)
-    return resized
+    return resized_grayscale
 
-def preprocess_image(input_path, output_path, final_width=1500):
+def execute_batch_processing_pipeline(input_folder, output_folder):
     """
-    Advanced Text Preservation Pipeline.
-    Stabilizes font contours and structures data arrays before OCR execution.
+    Traverses the specified source directory, executes the full geometric preprocessing
+    suite on valid image matrices, and exports uniform grayscale assets.
     """
-    # 1. Read Image
-    img = cv2.imread(input_path)
-    if img is None:
-        raise ValueError(f"Image not found at path: {input_path}")
+    if not os.path.exists(input_folder):
+        print(f"[FATAL DIRECTORY ERROR] Source directory not found at: {input_folder}")
+        sys.exit(1)
+        
+    os.makedirs(output_folder, exist_ok=True)
     
-    # 2. Convert to Grayscale
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # 3. Dynamic Upscaling (Blows up font boundaries using Lanczos)
-    if final_width:
-        gray_img = resize_image(gray_img, width=final_width)
-
-    # 4. CLAHE Optimization Layer (Executed first to balance image illumination evenly)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    balanced_contrast = clahe.apply(gray_img)
-
-    # 5. Sharpening Filter (Crisps up edge gradients after balancing lighting)
-    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-    sharpened = cv2.filter2D(balanced_contrast, -1, kernel)
-
-    # 6. Morphological Closing (Connects broken pixels and heals fading/dotted text strokes)
-    morph_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    text_healed = cv2.morphologyEx(sharpened, cv2.MORPH_CLOSE, morph_kernel)
-
-    # 7. Deskew Image smoothly using corrected foreground mapping
-    deskewed_img = deskew_image(text_healed)
-
-    # 8. Frame Padding Layer (Adds a clean 40px white cushion to prevent Tesseract margin clipping)
-    final_processed_img = cv2.copyMakeBorder(
-        deskewed_img, 40, 40, 40, 40, 
-        borderType=cv2.BORDER_CONSTANT, 
-        value=255
-    )
-
-    # Save the polished high-contrast grayscale image matrix
-    cv2.imwrite(output_path, final_processed_img)
-    return output_path
-
-def batch_preprocess(input_folder, output_folder):
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    for file in os.listdir(input_folder):
-        if file.lower().endswith(('.png', '.jpg', '.jpeg')):
-            input_path = os.path.join(input_folder, file)
-            output_path = os.path.join(output_folder, file)
-
-            try:
-                preprocess_image(input_path, output_path)
-                print(f"Processed: {file}")
-            except Exception as e:
-                print(f"Error processing {file}: {e}")
+    valid_extensions = (".png", ".jpg", ".jpeg")
+    files = sorted([f for f in os.listdir(input_folder) if f.lower().endswith(valid_extensions)])
+    
+    print("="*80)
+    print(f"PIPELINE INITIATED: Processing {len(files)} source documents...")
+    print(f"Executing: Grayscale -> Hough Deskew -> Bi-Cubic Resizing (Geometry Active)")
+    print("="*80)
+    
+    for idx, filename in enumerate(files):
+        source_path = os.path.join(input_folder, filename)
+        destination_path = os.path.join(output_folder, filename)
+        
+        output_matrix = enhance_full_frame_with_geometry(source_path)
+        
+        if output_matrix is not None:
+            cv2.imwrite(destination_path, output_matrix)
+            print(f" [{idx+1}/{len(files)}] Geometrically Standardized: {filename}")
+            
+    print("\n" + "="*80)
+    print(f"SUCCESS: Batch preprocessing and spatial alignment finalized.")
+    print(f"Aligned and standardized grayscale images exported to: {output_folder}")
+    print("="*80)
 
 if __name__ == "__main__":
-    input_folder = "data/raw_images/train_15"
-    output_folder = "data/processed_data/processed_train_15"
-
-    print("="*60)
-    print("Initiating Enhanced Computer Vision Preprocessing Matrix...")
-    print("="*60)
-    batch_preprocess(input_folder, output_folder)
-    print("="*60)
-    print("SUCCESS: Image enhancement complete.")
-    print("="*60)
+    INPUT_DIR_TARGET = "data/raw_images/train_15"
+    OUTPUT_DIR_TARGET = "data/processed_data/train_15"
+    
+    execute_batch_processing_pipeline(INPUT_DIR_TARGET, OUTPUT_DIR_TARGET)

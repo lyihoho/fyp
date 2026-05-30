@@ -1,181 +1,175 @@
+import cv2
+import pytesseract
+import pandas as pd
+import numpy as np
 import os
 import re
-import pandas as pd
 import json
 import ollama
-import sys
 
-# Initialize your offline engine client
-local_client = ollama.Client()
+# --- ENVIRONMENT PATH CONFIGURATION ---
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+TESSERACT_CONFIG = r'--oem 3 --psm 4'
 
-# --- STEP 1: DETERMINISTIC BACKUP REGEX TOTAL LAYER ---
-def deterministic_fallback_total(text):
-    lines = text.split('\n')
-    keywords = ["grand total", "total due", "total amount", "amount due", "net total", "nett total", "nett", "net", "total", "amount", "cash", "paid"]
-    
-    for line in reversed(lines):
-        line_lower = line.lower()
-        if any(k in line_lower for k in keywords):
-            if any(ignore in line_lower for ignore in ["change", "baki"]):
-                continue
-            numbers = re.findall(r'\d+\s*[\.,]\s*\d{2}|\d+(?=:-)', line_lower)
-            if numbers:
-                clean_num = re.sub(r'[^\d\.,]', '', numbers[-1]).replace(',', '.')
-                try:
-                    val = float(clean_num)
-                    if val > 0.50:
-                        return round(val, 2)
-                except ValueError:
-                    continue
+try:
+    local_client = ollama.Client()
+except Exception:
+    local_client = None
 
-    all_decimals = re.findall(r'\d+[\.,]\s*\d{2}', text)
-    if all_decimals:
-        cleaned_decimals = []
-        for d in all_decimals:
-            try:
-                cleaned_decimals.append(float(d.replace(',', '.').replace(' ', '')))
-            except ValueError:
-                continue
-        if cleaned_decimals:
-            return max(cleaned_decimals[-3:])
-            
-    return 0.0
-
-# --- STEP 2: CONTEXT-OPTIMIZED LOCAL AI COGNITIVE LAYER ---
-def ai_analyze_text_local(ocr_text: str) -> dict:
-    LOCAL_MODEL = "qwen2.5:3b" 
-    
+def get_llm_parsing_fallback(raw_text_dump):
+    """
+    Uses the local Qwen model to reconstruct clean strings when deterministic logic drops.
+    Heavily optimized to catch brand names like Krispy Kreme from raw text fragments.
+    """
+    if local_client is None:
+        return {"merchant": "Unknown Store", "total": 0.0}
+        
     prompt = f"""
-    You are a receipt parsing assistant. Analyze this Malaysian receipt text.
-    Find the storefront consumer brand name and the final total amount paid.
-    
-    Respond ONLY with a JSON object matching this schema:
+    ### System Instruction:
+    You are a strict data extraction algorithm. Analyze the following Malaysian receipt text.
+    Isolate the main store brand name and final net total paid cleanly.
+
+    Rules:
+    1. Output your response as a single, valid JSON object. Do not include prose explanations.
+    2. Strip out corporate suffixes like Sdn Bhd.
+
+    JSON Schema:
     {{
-        "merchant": "Brand or Store Name only (clean up typos, remove corporate markers like 'Sdn Bhd' or parent entity names)",
-        "date": "YYYY-MM-DD (or 'Unknown')",
-        "total_amount": float (The final overall total money paid),
-        "contains_tax": int (1 if SST, GST, or Tax is listed, otherwise 0)
+        "merchant": "Cleaned Store Name Only",
+        "total_amount": float
     }}
 
-    Receipt Text:
-    \"\"\"
-    {ocr_text}
-    \"\"\"
+    ### Target Text:
+    {raw_text_dump}
     """
     try:
-        response = local_client.generate(
-            model=LOCAL_MODEL,
-            prompt=prompt,
-            options={'temperature': 0.0}, 
-            format='json'                 
-        )
-        return json.loads(response['response'])
+        response = local_client.generate(model="qwen2.5:3b", prompt=prompt, options={'temperature': 0.0}, format='json')
+        data = json.loads(response['response'])
+        extracted_total = float(data.get("total_amount", 0.0))
+        if extracted_total > 600.00: extracted_total = 0.0
+        return {"merchant": data.get("merchant", "Unknown Store"), "total": extracted_total}
     except Exception:
-        return {"merchant": "Unknown", "date": "Unknown", "total_amount": 0.0, "contains_tax": 0}
+        return {"merchant": "Unknown Store", "total": 0.0}
 
-# --- STEP 3: AUXILIARY METRIC CALCULATIONS ---
-def receipt_length(text): return len(text)
-def num_lines(text): return len([l for l in text.split('\n') if l.strip() and not re.search(r'(subtotal|tax|total)', l, re.I)])
-def num_amounts(text): return len(re.findall(r'(\d+[\s\.,]*\d{2}|\d+:-)', text))
-def avg_item_price(total, lines): return round(total / lines, 2) if total and lines else 0.0
+def extract_structural_and_content_features(image_path):
+    img = cv2.imread(image_path)
+    if img is None:
+        return None
+        
+    h, w, _ = img.shape
+    # Standard grayscale step to preserve native text features without pixel deforming
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # 1. --- EXTRACT RAW NATIVE COORDINATE MATRIX ---
+    data = pytesseract.image_to_data(gray, config=TESSERACT_CONFIG, output_type=pytesseract.Output.DATAFRAME)
+    data = data.dropna(subset=['text'])
+    data = data[data['text'].astype(str).str.strip() != '']
+    
+    if data.empty:
+        return None
 
-# --- STEP 4: PIPELINE LOOP ARCHITECTURE ---
+    # 2. --- NATIVE LOOK AND FEEL EXTRACTION ---
+    total_words = len(data)
+    average_ocr_confidence = data['conf'].mean()
+    word_boxes_area = (data['width'] * data['height']).sum()
+    layout_density_ratio = float(word_boxes_area / (w * h))
+    vertical_variance = data['top'].var() if len(data) > 1 else 0.0
+
+    # Compile a direct flat line string for simple regex scans
+    all_text_string = " ".join(data['text'].astype(str).tolist())
+
+    # 3. --- RESTORED FIXED GRID RECONSTRUCTION MATRIX ---
+    data = data.copy()
+    data['line_group'] = data['top'] // 15
+    
+    lines = []
+    for g in sorted(data['line_group'].unique()):
+        line_str = " ".join(data[data['line_group'] == g].sort_values(by='left')['text'].astype(str).tolist())
+        lines.append(line_str)
+    full_text_dump = "\n".join(lines)
+
+    # 4. --- EXTRACT DETERMINISTIC FIELD ENTRIES ---
+    detected_total = 0.0
+    price_matches = re.findall(r'\d+[\.,]\s*\d{2}', all_text_string)
+    if price_matches:
+        cleaned_prices = []
+        for p in price_matches:
+            try:
+                num = float(re.sub(r'[^\d\.,]', '', p).replace(',', '.'))
+                if num < 600.00: cleaned_prices.append(num) 
+            except ValueError: continue
+        if cleaned_prices:
+            detected_total = max(cleaned_prices[-4:])
+
+    # Heading Matcher using locked row division boundaries
+    top_rows = data[data['top'] < (h * 0.15)].copy()
+    detected_store_name = "Unknown Store"
+    if not top_rows.empty:
+        top_rows['line_group_head'] = top_rows['top'] // 12
+        first_line = top_rows[top_rows['line_group_head'] == top_rows['line_group_head'].min()].sort_values(by='left')
+        raw_headline = " ".join(first_line['text'].astype(str).tolist()).strip()
+        cleaned_headline = re.sub(r'[^\w\s\.\&\-\@]', '', raw_headline).strip()
+        if len(cleaned_headline) > 2 and not re.match(r'^\d', cleaned_headline):
+            if not any(n in cleaned_headline.lower() for n in ["tel", "phone", "tax", "invoice", "welcome"]):
+                detected_store_name = re.sub(r'\b(sdn|bhd|inc|llp|co|enterprise|trading)\b', '', cleaned_headline, flags=re.I).strip()
+
+    # Chronological Extraction
+    detected_date = "Unknown Date"
+    date_pattern = r'\b(\d{2}[/\.\-]\d{2}[/\.\-]\d{4})|(\d{4}[/\.\-]\d{2}[/\.\-]\d{2})|(\d{2}[/\.\-]\d{2}[/\.\-]\d{2})\b'
+    date_matches = re.findall(date_pattern, all_text_string)
+    if date_matches:
+        found_date = [match for group in date_matches for match in group if match]
+        if found_date: detected_date = found_date[0]
+
+    # 5. --- UPGRADED INTELLIGENT COGNITIVE RECOVERY LAYER ---
+    # If the strict layout parser misses the brand name, can't find a total, 
+    # or pulls a messy short string, let Qwen clean it up from the text dump!
+    if detected_total == 0.0 or detected_store_name == "Unknown Store" or len(detected_store_name) < 4 or "krispy" in all_text_string.lower():
+        ai_corrections = get_llm_parsing_fallback(full_text_dump)
+        if detected_total == 0.0:
+            detected_total = ai_corrections.get("total", 0.0)
+        # Prioritize AI recovery if the extracted name is too short or generic
+        if detected_store_name == "Unknown Store" or len(detected_store_name) < 4 or "krispy" in all_text_string.lower():
+            detected_store_name = ai_corrections.get("merchant", "Unknown Store")
+
+    # Final Low Value Check
+    if 0.0 < detected_total < 5.00 and price_matches:
+        try:
+            alt_prices = [float(re.sub(r'[^\d\.,]', '', p).replace(',', '.')) for p in price_matches]
+            valid_alt = [p for p in alt_prices if 5.00 < p < 600.00]
+            if valid_alt: detected_total = max(valid_alt[-3:]) 
+        except Exception: pass
+
+    return {
+        "filename": os.path.basename(image_path),
+        "extracted_store": detected_store_name,
+        "extracted_total": detected_total,
+        "date": detected_date,
+        "layout_density_ratio": round(layout_density_ratio, 5),
+        "word_count": total_words,
+        "vertical_alignment_variance": round(vertical_variance, 2),
+        "avg_ocr_confidence": round(average_ocr_confidence, 2)
+    }
+
+def run_real_use_feature_pipeline(images_dir, output_csv):
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+    valid_exts = ('.png', '.jpg', '.jpeg')
+    image_files = sorted([f for f in os.listdir(images_dir) if f.lower().endswith(valid_exts)])
+    
+    master_feature_pool = []
+    for filename in image_files:
+        full_img_path = os.path.join(images_dir, filename)
+        extracted_row = extract_structural_and_content_features(full_img_path)
+        if extracted_row:
+            master_feature_pool.append(extracted_row)
+            print(f"Processed: {filename} | Store: {extracted_row['extracted_store'][:15]:<15} | Date: {extracted_row['date']:<12} | Total: RM {extracted_row['extracted_total']:<7}")
+
+    df = pd.DataFrame(master_feature_pool)
+    df.to_csv(output_csv, index=False)
+    print(f"\nMatrix successfully re-compiled from native files to: {output_csv}")
+
 if __name__ == "__main__":
-    text_input_folder = "data/extracted_text/extracted_train_15"
-    output_csv_path = "data/extracted_text/parsed_predictions.csv"
-    
-    try:
-        local_client.list()
-    except Exception:
-        print("\n[CRITICAL ERROR] Ollama background app is not running.")
-        sys.exit(1)
-        
-    print("="*60)
-    print("Pipeline Initiated. Running Balanced Local Parsing Step...")
-    print("="*60)
-
-    parsed_dataset = []
-    
-    if not os.path.exists(text_input_folder):
-        print(f"[ERROR] Input text folder missing at: {text_input_folder}. Run extraction first.")
-        sys.exit(1)
-        
-    files_to_process = sorted([f for f in os.listdir(text_input_folder) if f.lower().endswith(".txt")])
-
-    for filename in files_to_process:
-        text_path = os.path.join(text_input_folder, filename)
-        image_key = filename.replace(".txt", ".jpeg")
-        
-        with open(text_path, "r", encoding="utf-8") as f:
-            extracted_text = f.read()
-
-        ai_data = ai_analyze_text_local(extracted_text)
-        
-        merchant = ai_data.get("merchant", "Unknown").strip()
-        total_val = ai_data.get("total_amount", 0.0)
-        
-        if total_val is None:
-            total_val = 0.0
-
-        if not merchant or merchant.lower() in ["unknown", ""]:
-            lines = [l.strip() for l in extracted_text.split('\n') if len(l.strip()) > 3]
-            merchant = lines[0] if lines else "Unknown"
-
-        if total_val == 0.0 or total_val > 1500.0:  
-            total_val = deterministic_fallback_total(extracted_text)
-            
-        # ----------------------------------------------------------------------
-        # STEP 4B: HIGH-PRECISION RECONCILIATION MATRICES (FYP Ground Truth Sync)
-        # ----------------------------------------------------------------------
-        merchant_clean = merchant.lower()
-        
-        # Universal Restaurant & Retail Brand Standardizations
-        if "cajolly" in merchant_clean or "cajally" in merchant_clean or "dao" in merchant_clean:
-            merchant = "Dao"
-        elif "donki" in merchant_clean or "jonetz" in merchant_clean:
-            merchant = "Don Don Donki"
-        elif "watson" in merchant_clean:
-            merchant = "Watsons"
-        elif "shabu" in merchant_clean or "skylark" in merchant_clean:
-            merchant = "Shabu-Yo"
-        elif "qsrostires" in merchant_clean or "qsr" in merchant_clean:
-            merchant = "KFC"
-        elif "anthate" in merchant_clean:
-            merchant = "Animate"
-            
-        # Explicit Document Target Overrides for Truncated/Invisible Elements
-        if image_key == "r_02.jpeg":
-            merchant = "Village Grocer"
-            total_val = 47.90
-        elif image_key == "r_11.jpeg":
-            merchant = "Shabu-Yo"
-            total_val = 20.07
-        elif image_key == "r_15.jpeg":
-            merchant = "Bath & Body Works"
-            total_val = 31.20
-        # ----------------------------------------------------------------------
-        
-        lines_count = num_lines(extracted_text)
-        
-        metrics = {
-            "merchant": merchant,
-            "date": ai_data.get("date", "Unknown"),
-            "total_amount": total_val,
-            "receipt_length": receipt_length(extracted_text),
-            "num_lines": lines_count,
-            "num_amounts": num_amounts(extracted_text),
-            "avg_item_price": avg_item_price(total_val, lines_count),
-            "contains_tax": ai_data.get("contains_tax", 0),
-            "filename": image_key
-        }
-        
-        parsed_dataset.append(metrics)
-        print(f"Parsed Locally: {filename} | Merchant: {metrics['merchant'][:25]:<25} | Total Amount: RM {metrics['total_amount']}")
-
-    df_output = pd.DataFrame(parsed_dataset)
-    df_output.to_csv(output_csv_path, index=False)
-    
-    print("\n" + "="*60)
-    print(f"SUCCESS: Split step local parsing cycle complete.")
-    print(f"Feature matrix saved to: {output_csv_path}")
-    print("="*60)
+    # Point straight back to your raw image directory to keep coordinates intact!
+    RAW_IMAGES_FOLDER = "data/raw_images/train_15"
+    ANOMALY_INPUT_CSV = "data/anomaly_detection_input.csv"
+    run_real_use_feature_pipeline(RAW_IMAGES_FOLDER, ANOMALY_INPUT_CSV)

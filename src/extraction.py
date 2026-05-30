@@ -51,7 +51,7 @@ def extract_date(text):
 # --- MAIN EXECUTION PIPELINE ---
 
 if __name__ == "__main__":
-    input_folder = "data/processed_data/processed_train_15"
+    input_folder = "data/processed_data/processed_batch_1"
     output_text_folder = "data/extracted_text/extracted_train_15"
     
     os.makedirs(output_text_folder, exist_ok=True)
