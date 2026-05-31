@@ -7,8 +7,8 @@ from database import init_db, SessionLocal, Receipt
 # Import your architectural modules
 import parsing
 import train_model
-import anomaly_detection
-import report_generator
+import anomalydetection
+#import report_generator
 
 def execute_pipeline(images_directory, output_csv_backup, production_mode=False):
     print("=" * 80)
