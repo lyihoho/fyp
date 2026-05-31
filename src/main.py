@@ -30,7 +30,7 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
         train_model.train_and_export_models()
 
         print("\n📊 [DEVELOPMENT STEP 3] Re-scoring whole database pool against new baseline...")
-        anomaly_detection.run_evaluation_suite()
+        anomalydetection.run_evaluation_suite()
         
         # Keep PDF generation turned off during heavy ingestion rounds to save speed
         print("\n⏭️ [DEVELOPMENT STEP 4] Skipping PDF generation for batch speed.")
@@ -48,10 +48,10 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
         # We skip train_model entirely here!
 
         print("\n🔮 [PRODUCTION STEP 3] Evaluating fresh row entry against central database metrics...")
-        anomaly_detection.run_evaluation_suite()
+        anomalydetection.run_evaluation_suite()
 
-        print("\n📄 [PRODUCTION STEP 4] Compiling downloadable Turnitin-style PDF audit sheet...")
-        report_generator.generate_all_pending_reports()
+        #print("\n📄 [PRODUCTION STEP 4] Compiling downloadable Turnitin-style PDF audit sheet...")
+        #report_generator.generate_all_pending_reports()
 
     duration = time.time() - start_time
     print("=" * 80)
