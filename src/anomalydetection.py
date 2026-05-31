@@ -1,150 +1,139 @@
+# anomaly_detection.py
+import os
+import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import IsolationForest
 from difflib import SequenceMatcher
+from database import SessionLocal, Receipt
+
+MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+LF_MODEL_PATH = os.path.join(MODELS_DIR, "look_feel_forest.pkl")
+SF_MODEL_PATH = os.path.join(MODELS_DIR, "structure_forest.pkl")
+LF_SCALER_PATH = os.path.join(MODELS_DIR, "look_feel_scaler.pkl")
+SF_SCALER_PATH = os.path.join(MODELS_DIR, "structure_scaler.pkl")
 
 class MultiCriteriaAnomalyEngine:
-    def __init__(self, contamination=0.05, random_state=42):
-        # Two separate Isolation Forests to isolate Look & Feel from Structure format
-        self.look_feel_model = IsolationForest(contamination=contamination, random_state=random_state)
-        self.structure_model = IsolationForest(contamination=contamination, random_state=random_state)
-        self.fitted = False
-
-    def train_on_baseline_data(self, database_df):
-        """
-        TRAINING PHASE: Feeds your historical database rows into the models 
-        so they can learn the baseline geometric boundaries of your receipts.
-        """
-        # Train Look & Feel on Density and Word Count
-        X_look_feel = database_df[["layout_density_ratio", "word_count"]].values
-        self.look_feel_model.fit(X_look_feel)
+    def __init__(self):
+        if not all(os.path.exists(p) for p in [LF_MODEL_PATH, SF_MODEL_PATH, LF_SCALER_PATH, SF_SCALER_PATH]):
+            raise FileNotFoundError("❌ Trained model files or scalers missing! Run train_model.py first.")
         
-        # Train Structure & Format on Line Variance
-        X_structure = database_df[["vertical_alignment_variance"]].values
-        self.structure_model.fit(X_structure)
-        
-        self.fitted = True
-        print(f"--> [TRAINING COMPLETE] Machine learning models trained on {len(database_df)} receipt baselines.")
+        self.look_feel_model = joblib.load(LF_MODEL_PATH)
+        self.structure_model = joblib.load(SF_MODEL_PATH)
+        self.look_feel_scaler = joblib.load(LF_SCALER_PATH)
+        self.structure_scaler = joblib.load(SF_SCALER_PATH)
 
-    def calculate_section_scores(self, target_receipt, database_df):
-        """
-        EVALUATION PHASE: Uses the trained ML models and text logic to output
-        4 separate individual section scores (0.0% to 100.0%).
-        """
-        if not self.fitted:
-            raise ValueError("The machine learning models must be trained via train_on_baseline_data() first!")
+    def calculate_four_scores(self, target, history_df):
+        # --- METRIC 1: LOOK & FEEL SCORE ---
+        raw_lf = np.array([[float(target["layout_density_ratio"]), float(target["receipt_length"]), float(target["aspect_ratio"])]])
+        scaled_lf = self.look_feel_scaler.transform(raw_lf)
+        lf_ml_score = self.look_feel_model.decision_function(scaled_lf)[0]
+        s_look_feel = max(0.0, min(100.0, (lf_ml_score + 0.45) * 200.0))
 
-        # ---------------------------------------------------------------------
-        # SECTION 1: LOOK & FEEL SCORE (Powered by Trained Isolation Forest)
-        # ---------------------------------------------------------------------
-        lf_features = np.array([[target_receipt["layout_density_ratio"], target_receipt["word_count"]]])
-        # decision_function returns a score where negative = anomaly outlier
-        lf_ml_score = self.look_feel_model.decision_function(lf_features)[0]
-        
-        # Map the raw ML score to a clean 0-100% presentation rating
-        s_look_feel = max(0.0, min(100.0, (lf_ml_score + 0.5) * 200.0))
+        # --- METRIC 2: STRUCTURE & FORMAT SCORE ---
+        raw_sf = np.array([[float(target["num_lines"]), float(target["vertical_alignment_variance"])]])
+        scaled_sf = self.structure_scaler.transform(raw_sf)
+        sf_ml_score = self.structure_model.decision_function(scaled_sf)[0]
+        s_structure = max(0.0, min(100.0, (sf_ml_score + 0.45) * 200.0))
 
-        # ---------------------------------------------------------------------
-        # SECTION 2: STRUCTURE & FORMAT SCORE (Powered by Trained Isolation Forest)
-        # ---------------------------------------------------------------------
-        sf_features = np.array([[target_receipt["vertical_alignment_variance"]]])
-        sf_ml_score = self.structure_model.decision_function(sf_features)[0]
-        
-        s_structure = max(0.0, min(100.0, (sf_ml_score + 0.5) * 200.0))
-
-        # ---------------------------------------------------------------------
-        # SECTION 3: CONTENT ACCURACY SCORE (Rule-Based Field Validation)
-        # ---------------------------------------------------------------------
+        # --- METRIC 3: CONTENT ACCURACY SCORE ---
         s_content = 100.0
-        if float(target_receipt.get("extracted_total", 0.0)) <= 0.0:
-            s_content -= 50.0  
-        if "unknown" in str(target_receipt.get("extracted_store", "")).lower():
-            s_content -= 30.0
-        if "unknown" in str(target_receipt.get("date", "")).lower():
-            s_content -= 20.0
+        new_merchant = str(target.get("merchant", "")).lower().strip()
+        new_total = float(target.get("total_amount", 0.0))
+        new_date = str(target.get("date", "")).strip()
 
-        # ---------------------------------------------------------------------
-        # SECTION 4: HANDWRITING / ALTERATION SECURITY SCORE (OCR Confidence)
-        # ---------------------------------------------------------------------
-        s_handwriting = 100.0
-        avg_ocr_conf = float(target_receipt.get("avg_ocr_confidence", 100.0))
+        if new_total <= 0.0: s_content -= 30.0
+        if "unknown" in new_merchant: s_content -= 20.0
+        if int(target.get("math_valid_flag", 1)) == 0: s_content -= 15.0
+
+        for _, row in history_df.iterrows():
+            if abs(new_total - float(row.get("total_amount", 0.0))) < 0.01:
+                text_sim = SequenceMatcher(None, new_merchant, str(row.get("merchant", "")).lower().strip()).ratio()
+                if text_sim > 0.85 and str(row.get("date", "")).strip() == new_date:
+                    s_content = 0.0  
+                    break
+
+        # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
+        s_integrity = 100.0
+        ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
+        spacing_var = float(target.get("character_spacing_var", 0.0))
+
+        if ocr_conf < 82.0: 
+            s_integrity -= ((82.0 - ocr_conf) * 1.5)
+        if spacing_var > 30000.0: 
+            s_integrity -= 15.0
         
-        if avg_ocr_conf < 75.0:
-            confidence_deficit = 75.0 - avg_ocr_conf
-            s_handwriting -= (confidence_deficit * 3.5)
-            
-        s_handwriting = max(0.0, min(100.0, s_handwriting))
+        s_integrity = max(0.0, min(100.0, s_integrity))
 
-        # ---------------------------------------------------------------------
-        # GUARDRAIL: CLONE DUPLICATE HARD-DROP
-        # ---------------------------------------------------------------------
-        # If an incoming receipt is a perfect spatial clone clone of a database file,
-        # we bypass the average and instantly flag it as a duplicate threat.
-        new_store = str(target_receipt.get("extracted_store", "")).lower().strip()
-        new_total = float(target_receipt.get("extracted_total", 0.0))
-        new_date = str(target_receipt.get("date", "")).strip().lower()
+        return round(s_look_feel, 1), round(s_structure, 1), round(s_content, 1), round(s_integrity, 1)
 
-        for idx, row in database_df.iterrows():
-            total_matches = abs(new_total - float(row.get("extracted_total", 0.0))) < 0.01
-            stored_date = str(row.get("date", "")).strip().lower()
-            
-            if total_matches:
-                if "unknown" not in new_date and "unknown" not in stored_date and new_date != stored_date:
-                    continue # Different transaction dates = Safe recurring buy!
-                
-                stored_store = str(row.get("extracted_store", "")).lower().strip()
-                text_sim = SequenceMatcher(None, new_store, stored_store).ratio()
-                
-                # If store names match and layout features are tightly mirrored
-                if text_sim > 0.80 and abs(target_receipt["layout_density_ratio"] - row["layout_density_ratio"]) < 0.005:
-                    return round(s_look_feel, 1), round(s_structure, 1), round(s_content, 1), 0.0 # Force handwriting/security to 0%
-
-        return round(s_look_feel, 1), round(s_structure, 1), round(s_content, 1), round(s_handwriting, 1)
-
-
-if __name__ == "__main__":
-    DATABASE_CSV = "data/anomaly_detection_input.csv"
-    
-    print("="*80)
-    print("TRAINING & RUNNING RUNTIME MULTI-CRITERIA AI AUDIT SUITE")
-    print("="*80)
+def run_evaluation_suite():
+    print("🚨 [EVALUATION ENGINE RUNNING] Pulling database records...")
+    session = SessionLocal()
     
     try:
-        db_df = pd.read_csv(DATABASE_CSV)
-    except FileNotFoundError:
-        print(f"Error: {DATABASE_CSV} not found. Run parsing.py first!")
-        exit()
+        records = session.query(Receipt).all()
+        if not records:
+            print("❌ Error: No parsed records found in the database. Run parsing.py first.")
+            return
+
+        data_pool = []
+        for r in records:
+            row_dict = r.__dict__.copy()  
+            row_dict.pop('_sa_instance_state', None)
+            data_pool.append(row_dict)
+            
+        df_master = pd.DataFrame(data_pool)
+        engine = MultiCriteriaAnomalyEngine()
         
-    # Initialize our engine
-    engine = MultiCriteriaAnomalyEngine(contamination=0.05)
-    
-    # 1. RUN TRAINING PHASE NATIVELY
-    engine.train_on_baseline_data(db_df)
-    print("-" * 80)
-    
-    # 2. EVALUATE TRACKS
-    for idx, target_row in db_df.iterrows():
-        background_db = db_df.drop(idx)
-        current_features = target_row.to_dict()
+        print("\n" + "="*80 + "\n⚙️ RUNTIME EVALUATION: AUDIT COMPLIANCE SWITCHBOARD\n" + "="*80)
+
+        for r in records:
+            current_target = r.__dict__.copy()
+            current_target.pop('_sa_instance_state', None)
+            df_background = df_master[df_master['filename'] != r.filename]
+            
+            # --- 🛡️ EXTRACTION GATEWAY: SOFTENED READABILITY BALANCER ---
+            raw_ocr_confidence = float(current_target.get("avg_ocr_confidence", 100.0))
+            if raw_ocr_confidence < 40.0: # Softened to 40.0 to rescue wrinkled pages
+                s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
+                composite_score = 0.0
+                verdict_label = "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)"
+            else:
+                s_lf, s_sf, s_ca, s_ti = engine.calculate_four_scores(current_target, df_background)
+                composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
+                
+                if s_ca == 0.0:
+                    verdict_label = "REJECTED (DUPLICATE TRANS CLONE)"
+                elif composite_score >= 85.0:
+                    verdict_label = "APPROVED FOR REIMBURSEMENT"
+                elif 70.0 <= composite_score < 85.0:
+                    verdict_label = "SELECTED FOR MANUAL REVIEW"
+                else:
+                    verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
+
+            r.score_look_feel = s_lf
+            r.score_structure_format = s_sf  
+            r.score_content_accuracy = s_ca
+            r.score_text_integrity = s_ti
+            r.fraud_score = f"{composite_score:.1f}%"
+            r.fraud_label = verdict_label
+
+            print(f"📄 File: {r.filename:<12} | Merchant: {str(r.merchant)[:18]:<18}")
+            print(f" 🎚️ [OVERALL SCALE]: {r.fraud_score} -> *** {verdict_label} ***")
+            print(f" ├─ 1. Look & Feel Score        : {s_lf}%")
+            print(f" ├─ 2. Structure & Format Score  : {s_sf}%")
+            print(f" ├─ 3. Content Accuracy Score    : {s_ca}%")
+            print(f" └─ 4. Text Integrity Score      : {s_ti}%")
+            print("-" * 80)
+
+        session.commit()
+        print("💾 [SQLITE SUCCESS] Multi-criteria dynamic evaluation synced to database tables!")
         
-        # Compute individual metrics via trained trees
-        s_lf, s_sf, s_ca, s_hw = engine.calculate_section_scores(current_features, background_db)
-        
-        # Calculate final composite score
-        final_score = (s_lf + s_sf + s_ca + s_hw) / 4.0
-        
-        print(f"File Reference: {current_features['filename']}")
-        print(f"↳ Merchant: {str(current_features['extracted_store'])[:15]:<15} | Price: RM {current_features['extracted_total']}")
-        print(f"  [EVALUATION SCORECARD]:")
-        print(f"  ├─ 1. Look & Feel Score (ML)  : {s_lf}%")
-        print(f"  ├─ 2. Structure & Format (ML) : {s_sf}%")
-        print(f"  ├─ 3. Content Accuracy Score  : {s_ca}%")
-        print(f"  └─ 4. Handwriting/Scribble Sec: {s_hw}%")
-        
-        if s_hw == 0.0:
-            print(f"  🚨 [FINAL VERDICT]: {final_score:.1f}% -> CRITICAL IDENTICAL CLONE SCAM DETECTED")
-        elif final_score < 75.0:
-            print(f"  ⚠️  [FINAL VERDICT]: {final_score:.1f}% -> SUSPECT PROFILE WARNING (Outlier Metrics)")
-        else:
-            print(f"  ✅ [FINAL VERDICT]: {final_score:.1f}% -> DOCUMENT VERIFIED CLEAN AND AUTHENTIC")
-        print("-" * 80)
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Critical Evaluation Error: {str(e)}")
+    finally:
+        session.close()
+
+if __name__ == "__main__":
+    run_evaluation_suite()

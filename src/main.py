@@ -1,0 +1,68 @@
+# main.py
+import os
+import sys
+import time
+from database import init_db, SessionLocal, Receipt
+
+# Import your architectural modules
+import parsing
+import train_model
+import anomaly_detection
+import report_generator
+
+def execute_pipeline(images_directory, output_csv_backup, production_mode=False):
+    print("=" * 80)
+    print(f"🚀 AI AUDITING COMPLIANCE PIPELINE | MODE: {'PRODUCTION' if production_mode else 'BASELINE TRAINING'}")
+    print("=" * 80)
+    start_time = time.time()
+
+    # Step 0: Ensure database infrastructure slots are ready
+    init_db()
+
+    # ---------------------------------------------------------------------
+    # SYSTEM MODE A: BASELINE INGESTION & TRAINING (What you are doing now)
+    # ---------------------------------------------------------------------
+    if not production_mode:
+        print("\n📥 [DEVELOPMENT STEP 1] Parsing image directory batch into database rows...")
+        parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
+
+        print("\n🌲 [DEVELOPMENT STEP 2] Re-fitting StandardScaler matrices & Isolation Forests...")
+        train_model.train_and_export_models()
+
+        print("\n📊 [DEVELOPMENT STEP 3] Re-scoring whole database pool against new baseline...")
+        anomaly_detection.run_evaluation_suite()
+        
+        # Keep PDF generation turned off during heavy ingestion rounds to save speed
+        print("\n⏭️ [DEVELOPMENT STEP 4] Skipping PDF generation for batch speed.")
+
+    # ---------------------------------------------------------------------
+    # SYSTEM MODE B: PRODUCTION RUNTIME (Your exact "Actual Development" vision)
+    # ---------------------------------------------------------------------
+    else:
+        print("\n🔍 [PRODUCTION STEP 1] Scanning new production upload slot...")
+        # In a live app, images_directory would point to the single uploaded file
+        # parsing.py extracts it, checks uniqueness against DB, and creates a raw row entry.
+        parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
+
+        print("\n🔒 [PRODUCTION STEP 2] Training bypassed. Using frozen .pkl model weights.")
+        # We skip train_model entirely here!
+
+        print("\n🔮 [PRODUCTION STEP 3] Evaluating fresh row entry against central database metrics...")
+        anomaly_detection.run_evaluation_suite()
+
+        print("\n📄 [PRODUCTION STEP 4] Compiling downloadable Turnitin-style PDF audit sheet...")
+        report_generator.generate_all_pending_reports()
+
+    duration = time.time() - start_time
+    print("=" * 80)
+    print(f"🎉 PIPELINE RUN COMPLETED SUCCESSFULLY IN {duration:.2f} SECONDS")
+    print("=" * 80)
+
+if __name__ == "__main__":
+    RAW_RECEIPTS_FOLDER = "data/processed_data/combined_train"
+    BACKUP_DATA_CSV = "data/anomaly_detection_input.csv"
+    
+    # 🛠️ YOUR MASTER SWITCH:
+    # Set to False right now to train your system on your incoming wrinkled/folded batches.
+    # Set to True later for actual development to lock the models and generate live reports.
+    execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=False)
