@@ -22,39 +22,76 @@ except Exception:
 
 def get_llm_parsing_fallback(raw_text_dump):
     if local_client is None:
-        return {"merchant": "Unknown Store", "total": 0.0}
-    prompt = f"### System Instruction:\nYou are a strict data extraction algorithm. Analyze the following Malaysian receipt text. Isolate the main store brand name and final net total paid cleanly.\n\nJSON Schema:\n{{\n    \"merchant\": \"Cleaned Store Name Only\",\n    \"total_amount\": float\n}}\n\n### Target Text:\n{raw_text_dump}"
+        return {"merchant": "Unknown Store", "total": 0.0, "date": "Unknown Date"}
+    prompt = f"""### System Instruction:
+You are a strict data extraction algorithm. Analyze the following Malaysian receipt text. Isolate the main store brand name, the final net total paid, and the transaction date cleanly.
+
+### Date Formatting Rule:
+You MUST parse the date and output it strictly in the Malaysian/British standard: "DD/MM/YYYY". 
+- Dates are normally in these formats: "XX/XX/XXXX", "XXXX/XX/XX", "Month XX, XXXX" or similar
+- If a date is ambiguous (e.g., '03/09/2025' or '05/06/2026'), you MUST assume the first number is the DAY and the second number is the MONTH. 
+- If the date cannot be found or is completely unreadable, set the date field to "Unknown Date".
+
+JSON Schema: {{
+    "merchant": "Cleaned Store Name Only",
+    "date": "DD/MM/YYYY",
+    "total_amount": float
+}}
+
+### Target Text:
+{raw_text_dump}"""
+    
     try:
         response = local_client.generate(model="qwen2.5:3b", prompt=prompt, options={'temperature': 0.0}, format='json')
         data = json.loads(response['response'])
         extracted_total = float(data.get("total_amount", 0.0))
         if extracted_total > 2000.00: extracted_total = 0.0
-        return {"merchant": data.get("merchant", "Unknown Store"), "total": extracted_total}
+        return {
+            "merchant": data.get("merchant", "Unknown Store"), 
+            "total": extracted_total,
+            "date": data.get("date", "Unknown Date")
+        }
     except Exception:
-        return {"merchant": "Unknown Store", "total": 0.0}
+        return {"merchant": "Unknown Store", "total": 0.0, "date": "Unknown Date"}
 
 def extract_structural_and_content_features(image_path):
     img = cv2.imread(image_path)
     if img is None: return None
         
     h, w, _ = img.shape
-    aspect_ratio = float(w / h) # Calculate structural shape factor
+    aspect_ratio = float(w / h)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
     data = pytesseract.image_to_data(gray, config=TESSERACT_CONFIG, output_type=pytesseract.Output.DATAFRAME)
     data = data.dropna(subset=['text'])
     data = data[data['text'].astype(str).str.strip() != '']
-    if data.empty: return None
+    
+    # 🛡️ THE INGESTION GATEKEEPER: Catch unreadable/faded images immediately
+    if data.empty or len(data) < 5 or data['conf'].mean() < 25.0:
+        return {
+            "filename": os.path.basename(image_path),
+            "extracted_store": "Unknown Store",
+            "extracted_total": 0.0,
+            "date": "Unknown Date",
+            "layout_density_ratio": 0.0,
+            "word_count": 0,
+            "line_count": 0,  
+            "vertical_alignment_variance": 0.0,
+            "avg_ocr_confidence": round(float(data['conf'].mean()), 2) if not data.empty else 0.0,
+            "aspect_ratio": round(aspect_ratio, 4),
+            "math_valid": 1,
+            "char_spacing_variance": 0.0,
+            "unreadable_gate_flag": True
+        }
 
-    # Calculate Look & Feel distributions
+    # Calculate Look & Feel distributions for readable text
     total_words = len(data)
     average_ocr_confidence = data['conf'].mean()
     word_boxes_area = (data['width'] * data['height']).sum()
     layout_density_ratio = float(word_boxes_area / (w * h))
     vertical_variance = data['top'].var() if len(data) > 1 else 0.0
 
-    # Calculate Character Spacing Variance (Tampering indicator sub-metric)
-    # Measures how erratic the horizontal gaps are between word bounding boxes
+    # Calculate Character Spacing Variance
     if len(data) > 1:
         data_sorted = data.sort_values(by=['top', 'left'])
         horizontal_gaps = data_sorted['left'].diff().dropna()
@@ -87,12 +124,10 @@ def extract_structural_and_content_features(image_path):
             except ValueError: continue
         if cleaned_prices:
             detected_total = max(cleaned_prices[-4:])
-            # Quick Cross-Field Math Validation Sub-metric: 
-            # If the max price isn't roughly equal to the sum of items or balances, flag it
             if len(cleaned_prices) >= 3:
                 sorted_prices = sorted(cleaned_prices)
                 if abs(sorted_prices[-1] - (sorted_prices[-2] + sorted_prices[-3])) > 50.00:
-                    math_valid = 0 # Outrageous price math layout gap detected!
+                    math_valid = 0 
 
     # Merchant extraction matching
     top_rows = data[data['top'] < (h * 0.15)].copy()
@@ -113,11 +148,14 @@ def extract_structural_and_content_features(image_path):
         found_date = [match for group in date_matches for match in group if match]
         if found_date: detected_date = found_date[0]
 
-    if detected_total == 0.0 or detected_store_name == "Unknown Store" or len(detected_store_name) < 4 or "krispy" in all_text_string.lower():
+    if detected_total == 0.0 or detected_store_name == "Unknown Store" or len(detected_store_name) < 4:
         ai_corrections = get_llm_parsing_fallback(full_text_dump)
-        if detected_total == 0.0: detected_total = ai_corrections.get("total", 0.0)
-        if detected_store_name == "Unknown Store" or len(detected_store_name) < 4 or "krispy" in all_text_string.lower():
+        if detected_total == 0.0: 
+            detected_total = ai_corrections.get("total", 0.0)
+        if detected_store_name == "Unknown Store" or len(detected_store_name) < 4:
             detected_store_name = ai_corrections.get("merchant", "Unknown Store")
+        if detected_date == "Unknown Date":
+            detected_date = ai_corrections.get("date", "Unknown Date")
 
     return {
         "filename": os.path.basename(image_path),
@@ -131,7 +169,8 @@ def extract_structural_and_content_features(image_path):
         "avg_ocr_confidence": round(average_ocr_confidence, 2),
         "aspect_ratio": round(aspect_ratio, 4),
         "math_valid": math_valid,
-        "char_spacing_variance": round(char_spacing_variance, 2)
+        "char_spacing_variance": round(char_spacing_variance, 2),
+        "unreadable_gate_flag": False
     }
 
 def run_real_use_feature_pipeline(images_dir, output_csv):
@@ -151,13 +190,20 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
             db_session.commit()
         except Exception: db_session.rollback()
 
+        print("\n" + "="*80 + "\n📥 [INGESTION PHASE] SCREENING DOCUMENT MATRIX AT THE GATE\n" + "="*80)
+
         for filename in image_files:
             full_img_path = os.path.join(images_dir, filename)
             extracted_row = extract_structural_and_content_features(full_img_path)
             
             if extracted_row:
                 master_feature_pool.append(extracted_row)
-                print(f"Parsing: {filename} | Aspect Ratio: {extracted_row['aspect_ratio']} | Math Valid: {extracted_row['math_valid']}")
+                
+                # 📢 Programmatic Console Update: Explicitly flag unreadable documents on screen
+                if extracted_row['unreadable_gate_flag']:
+                    print(f"⚠️  [GATEKEEPER REJECTED]: {filename:<12} | Text is too faded/blurry. Status: PROMPT RE-UPLOAD")
+                else:
+                    print(f"Parsing: {filename:<12} | Aspect Ratio: {extracted_row['aspect_ratio']:<6} | Math Valid: {extracted_row['math_valid']}")
                 
                 new_receipt = Receipt(
                     filename=extracted_row['filename'],
@@ -171,14 +217,15 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                     avg_ocr_confidence=float(extracted_row['avg_ocr_confidence']),
                     aspect_ratio=float(extracted_row['aspect_ratio']),
                     math_valid_flag=int(extracted_row['math_valid']),
-                    character_spacing_var=float(extracted_row['char_spacing_variance'])
+                    character_spacing_var=float(extracted_row['char_spacing_variance']),
+                    fraud_label="REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)" if extracted_row['unreadable_gate_flag'] else "pending"
                 )
                 db_session.add(new_receipt)
         db_session.commit()
-        print("\n💾 [SQLITE SUCCESS] Extended look-and-feel data stored cleanly.")
+        print("\n💾 [SQLITE SUCCESS] Look-and-feel metrics ledger initialized completely.")
     except Exception as e:
         db_session.rollback()
-        print(f"❌ Error: {str(e)}")
+        print(f"❌ Ingestion Error: {str(e)}")
     finally: db_session.close()
 
     if master_feature_pool:

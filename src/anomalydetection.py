@@ -23,6 +23,18 @@ class MultiCriteriaAnomalyEngine:
         self.structure_scaler = joblib.load(SF_SCALER_PATH)
 
     def calculate_four_scores(self, target, history_df):
+        # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
+        s_integrity = 100.0
+        ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
+        spacing_var = float(target.get("character_spacing_var", 0.0))
+
+        if ocr_conf < 82.0: 
+            s_integrity -= ((82.0 - ocr_conf) * 1.5)
+        if spacing_var > 30000.0: 
+            s_integrity -= 15.0
+        
+        s_integrity = max(0.0, min(100.0, s_integrity))
+
         # --- METRIC 1: LOOK & FEEL SCORE ---
         raw_lf = np.array([[float(target["layout_density_ratio"]), float(target["receipt_length"]), float(target["aspect_ratio"])]])
         scaled_lf = self.look_feel_scaler.transform(raw_lf)
@@ -39,30 +51,33 @@ class MultiCriteriaAnomalyEngine:
         s_content = 100.0
         new_merchant = str(target.get("merchant", "")).lower().strip()
         new_total = float(target.get("total_amount", 0.0))
-        new_date = str(target.get("date", "")).strip()
+        new_date = str(target.get("date", "")).lower().strip()
 
-        if new_total <= 0.0: s_content -= 30.0
-        if "unknown" in new_merchant: s_content -= 20.0
+        missing_total = (new_total <= 0.0)
+        missing_merchant = ("unknown" in new_merchant)
+        missing_date = ("unknown" in new_date)
+
+        if missing_total: s_content -= 15.0
+        if missing_merchant: s_content -= 10.0
+        if missing_date: s_content -= 5.0
         if int(target.get("math_valid_flag", 1)) == 0: s_content -= 15.0
+
+        # The Conditional Cascade Penalty Matrix
+        if missing_total and missing_date:
+            s_content -= 30.0  
+        elif missing_merchant and missing_total:
+            s_content -= 25.0
+        elif missing_merchant and missing_date:
+            s_content -= 20.0
+
+        s_content = max(0.0, min(100.0, s_content))
 
         for _, row in history_df.iterrows():
             if abs(new_total - float(row.get("total_amount", 0.0))) < 0.01:
                 text_sim = SequenceMatcher(None, new_merchant, str(row.get("merchant", "")).lower().strip()).ratio()
-                if text_sim > 0.85 and str(row.get("date", "")).strip() == new_date:
+                if text_sim > 0.85 and str(row.get("date", "")).strip().lower() == new_date:
                     s_content = 0.0  
                     break
-
-        # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
-        s_integrity = 100.0
-        ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
-        spacing_var = float(target.get("character_spacing_var", 0.0))
-
-        if ocr_conf < 82.0: 
-            s_integrity -= ((82.0 - ocr_conf) * 1.5)
-        if spacing_var > 30000.0: 
-            s_integrity -= 15.0
-        
-        s_integrity = max(0.0, min(100.0, s_integrity))
 
         return round(s_look_feel, 1), round(s_structure, 1), round(s_content, 1), round(s_integrity, 1)
 
@@ -88,25 +103,24 @@ def run_evaluation_suite():
         print("\n" + "="*80 + "\n⚙️ RUNTIME EVALUATION: AUDIT COMPLIANCE SWITCHBOARD\n" + "="*80)
 
         for r in records:
-            current_target = r.__dict__.copy()
-            current_target.pop('_sa_instance_state', None)
-            df_background = df_master[df_master['filename'] != r.filename]
-            
-            # --- 🛡️ EXTRACTION GATEWAY: SOFTENED READABILITY BALANCER ---
-            raw_ocr_confidence = float(current_target.get("avg_ocr_confidence", 100.0))
-            if raw_ocr_confidence < 40.0: # Softened to 40.0 to rescue wrinkled pages
+            # Clean architectural intercept: Check if ingestion gatekeeper flagged it unreadable
+            if getattr(r, 'fraud_label', '') == "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)":
                 s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
                 composite_score = 0.0
                 verdict_label = "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)"
             else:
+                current_target = r.__dict__.copy()
+                current_target.pop('_sa_instance_state', None)
+                df_background = df_master[df_master['filename'] != r.filename]
+                
                 s_lf, s_sf, s_ca, s_ti = engine.calculate_four_scores(current_target, df_background)
                 composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
                 
                 if s_ca == 0.0:
                     verdict_label = "REJECTED (DUPLICATE TRANS CLONE)"
-                elif composite_score >= 85.0:
+                elif composite_score >= 83.0: 
                     verdict_label = "APPROVED FOR REIMBURSEMENT"
-                elif 70.0 <= composite_score < 85.0:
+                elif 60.0 <= composite_score < 83.0:
                     verdict_label = "SELECTED FOR MANUAL REVIEW"
                 else:
                     verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"

@@ -21,8 +21,8 @@ def strip_light_watermarks(image_path, output_path):
     print(f"✨ Cleaned watermark from: {os.path.basename(image_path)}")
 
 # Run it across your 10 synthetic downloads
-SYNTHETIC_DIR = "data/raw_images/train_synthetic_10"
-CLEANED_DIR = "data/raw_images/synthetic_10_cleaned"
+SYNTHETIC_DIR = "data/raw_images/train2_synthetic_10"
+CLEANED_DIR = "data/raw_images/synthetic2_10_cleaned"
 
 if os.path.exists(SYNTHETIC_DIR):
     for f in os.listdir(SYNTHETIC_DIR):
