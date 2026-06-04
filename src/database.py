@@ -35,7 +35,7 @@ class Receipt(Base):
     score_look_feel = Column(Float, nullable=True)       # Metric 1
     score_content_accuracy = Column(Float, nullable=True) # Metric 2
     score_text_integrity = Column(Float, nullable=True)   # Metric 3
-    score_machine_purity = Column(Float, nullable=True)   # Metric 4
+    score_structure_format = Column(Float, nullable=True)   # Metric 4
     
     # Overall System Decisions
     fraud_score = Column(String, default="pending")      # Weighted composite %
