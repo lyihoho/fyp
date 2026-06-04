@@ -58,7 +58,16 @@ class MultiCriteriaAnomalyEngine:
         missing_date = ("unknown" in new_date)
 
         if missing_total: s_content -= 15.0
-        if missing_merchant: s_content -= 10.0
+        
+        # DYNAMIC ACCURACY CALIBRATION:
+        # If merchant is unknown but the image clarity (Text Integrity) is high, 
+        # apply a lighter penalty (missing header) rather than a heavy failure penalty.
+        if missing_merchant:
+            if s_integrity >= 75.0:
+                s_content -= 7.0  # High clarity image, likely just a cropped header
+            else:
+                s_content -= 15.0 # Low clarity image + unknown merchant is suspicious
+                
         if missing_date: s_content -= 5.0
         if int(target.get("math_valid_flag", 1)) == 0: s_content -= 15.0
 
@@ -103,7 +112,6 @@ def run_evaluation_suite():
         print("\n" + "="*80 + "\n⚙️ RUNTIME EVALUATION: AUDIT COMPLIANCE SWITCHBOARD\n" + "="*80)
 
         for r in records:
-            # Clean architectural intercept: Check if ingestion gatekeeper flagged it unreadable
             if getattr(r, 'fraud_label', '') == "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)":
                 s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
                 composite_score = 0.0
@@ -116,7 +124,13 @@ def run_evaluation_suite():
                 s_lf, s_sf, s_ca, s_ti = engine.calculate_four_scores(current_target, df_background)
                 composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
                 
-                if s_ca == 0.0:
+                # --- ACCURACY UPGRADE: SECURITY OVERRIDE GATES ---
+                # If the text matrix is completely scrambled (<25%) or structure is broken (<20%),
+                # the document is high-risk. We override the average to force immediate rejection.
+                if s_ti < 25.0 or s_sf < 20.0:
+                    composite_score = 0.0
+                    verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
+                elif s_ca == 0.0:
                     verdict_label = "REJECTED (DUPLICATE TRANS CLONE)"
                 elif composite_score >= 83.0: 
                     verdict_label = "APPROVED FOR REIMBURSEMENT"
@@ -134,7 +148,7 @@ def run_evaluation_suite():
 
             print(f"📄 File: {r.filename:<12} | Merchant: {str(r.merchant)[:18]:<18}")
             print(f" 🎚️ [OVERALL SCALE]: {r.fraud_score} -> *** {verdict_label} ***")
-            print(f" ├─ 1. Look & Feel Score        : {s_lf}%")
+            print(f" ├─ 1. Look & Feel Score         : {s_lf}%")
             print(f" ├─ 2. Structure & Format Score  : {s_sf}%")
             print(f" ├─ 3. Content Accuracy Score    : {s_ca}%")
             print(f" └─ 4. Text Integrity Score      : {s_ti}%")
