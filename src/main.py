@@ -26,7 +26,7 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
         print("\n📥 [DEVELOPMENT STEP 1] Parsing image directory batch into database rows...")
         parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
 
-        print("\n🌲 [DEVELOPMENT STEP 2] Re-fitting StandardScaler matrices & Isolation Forests...")
+        print("\n🌲 [DEVELOPMENT STEP  2] Re-fitting StandardScaler matrices & Isolation Forests...")
         train_model.train_and_export_models()
 
         print("\n📊 [DEVELOPMENT STEP 3] Re-scoring whole database pool against new baseline...")

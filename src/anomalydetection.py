@@ -1,4 +1,3 @@
-# anomaly_detection.py
 import os
 import joblib
 import numpy as np
@@ -26,7 +25,9 @@ class MultiCriteriaAnomalyEngine:
         # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
         s_integrity = 100.0
         ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
-        spacing_var = float(target.get("character_spacing_var", 0.0))
+        
+        # 🔄 FIXED: Synchronized with 'char_spacing_variance' column name from database schema
+        spacing_var = float(target.get("char_spacing_variance", 0.0))
 
         if ocr_conf < 82.0: 
             s_integrity -= ((82.0 - ocr_conf) * 1.5)
@@ -60,8 +61,6 @@ class MultiCriteriaAnomalyEngine:
         if missing_total: s_content -= 15.0
         
         # DYNAMIC ACCURACY CALIBRATION:
-        # If merchant is unknown but the image clarity (Text Integrity) is high, 
-        # apply a lighter penalty (missing header) rather than a heavy failure penalty.
         if missing_merchant:
             if s_integrity >= 75.0:
                 s_content -= 7.0  # High clarity image, likely just a cropped header
@@ -112,10 +111,57 @@ def run_evaluation_suite():
         print("\n" + "="*80 + "\n⚙️ RUNTIME EVALUATION: AUDIT COMPLIANCE SWITCHBOARD\n" + "="*80)
 
         for r in records:
-            if getattr(r, 'fraud_label', '') == "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)":
+            current_label = getattr(r, 'fraud_label', '')
+            
+            # --- 🛡️ ENGINE GATE 1: CHECK FOR INGESTION ENGINE FLAGS FIRST ---
+            if current_label == "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)":
                 s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
                 composite_score = 0.0
                 verdict_label = "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)"
+                
+            elif current_label == "🛑 STANDARD DUPLICATE":
+                s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
+                composite_score = 0.0
+                verdict_label = "REJECTED (DUPLICATE CLAIM BLOCK)"
+                
+            elif current_label == "🚨 PHYSICAL TEMPLATE FRAUD":
+                current_target = r.__dict__.copy()
+                current_target.pop('_sa_instance_state', None)
+                df_background = df_master[df_master['filename'] != r.filename]
+                
+                # Still calculate the 4 scores so the audit sheet shows the spatial data
+                s_lf, s_sf, s_ca, s_ti = engine.calculate_four_scores(current_target, df_background)
+                composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
+                
+                # 🧠 INTELLIGENT VERIFICATION: Check if this is just a normal layout reuse
+                target_date = str(r.date).strip().lower()
+                target_total = float(r.total_amount)
+                
+                # Scan history to see if any background document matches layout AND financial specs
+                strict_clash = df_background[
+                    (df_background['date'].str.strip().str.lower() == target_date) & 
+                    (df_background['total_amount'].astype(float) == target_total)
+                ]
+                
+                # If date/amount match a background record, it's an illegal clone submission
+                if not strict_clash.empty and target_date != "unknown date" and target_total > 0.0:
+                    verdict_label = "SELECTED FOR MANUAL REVIEW (🚨 PHYSICAL TEMPLATE FRAUD)"
+                else:
+                    # Layout reuse but completely unique transaction details -> Legitimate receipt!
+                    # Let the standard dynamic ML scoring handle the verdict cleanly
+                    if s_ti < 25.0 or s_sf < 20.0:
+                        composite_score = 0.0
+                        verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
+                    elif s_ca == 0.0:
+                        verdict_label = "REJECTED (DUPLICATE TRANS CLONE)"
+                    elif composite_score >= 83.0: 
+                        verdict_label = "APPROVED FOR REIMBURSEMENT"
+                    elif 60.0 <= composite_score < 83.0:
+                        verdict_label = "SELECTED FOR MANUAL REVIEW"
+                    else:
+                        verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
+
+            # --- ENGINE GATE 2: EVALUATE STANDARD GENUINE RECEIPTS VIA DYNAMIC MACHINE LEARNING ---
             else:
                 current_target = r.__dict__.copy()
                 current_target.pop('_sa_instance_state', None)
@@ -125,8 +171,6 @@ def run_evaluation_suite():
                 composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
                 
                 # --- ACCURACY UPGRADE: SECURITY OVERRIDE GATES ---
-                # If the text matrix is completely scrambled (<25%) or structure is broken (<20%),
-                # the document is high-risk. We override the average to force immediate rejection.
                 if s_ti < 25.0 or s_sf < 20.0:
                     composite_score = 0.0
                     verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
@@ -139,6 +183,7 @@ def run_evaluation_suite():
                 else:
                     verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
 
+            # Sync updated database parameters completely
             r.score_look_feel = s_lf
             r.score_structure_format = s_sf  
             r.score_content_accuracy = s_ca
@@ -153,7 +198,6 @@ def run_evaluation_suite():
             print(f" ├─ 3. Content Accuracy Score    : {s_ca}%")
             print(f" └─ 4. Text Integrity Score      : {s_ti}%")
             print("-" * 80)
-
         session.commit()
         print("💾 [SQLITE SUCCESS] Multi-criteria dynamic evaluation synced to database tables!")
         
