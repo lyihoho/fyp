@@ -16,7 +16,7 @@ class Receipt(Base):
     __tablename__ = "receipts"
 
     id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, unique=True, nullable=False)
+    filename = Column(String, nullable=False)
     merchant = Column(String, default="Unknown Store")
     date = Column(String, default="Unknown Date")
     total_amount = Column(Float, default=0.0)

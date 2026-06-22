@@ -1,3 +1,4 @@
+# anomalydetection.py
 import os
 import joblib
 import numpy as np
@@ -22,73 +23,84 @@ class MultiCriteriaAnomalyEngine:
         self.structure_scaler = joblib.load(SF_SCALER_PATH)
 
     def calculate_four_scores(self, target, history_df):
-        # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
-        s_integrity = 100.0
-        ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
+        full_text = str(target.get("full_raw_text", "")).strip()
+        full_text_lower = full_text.lower()
         
-        # 🔄 FIXED: Synchronized with 'char_spacing_variance' column name from database schema
-        spacing_var = float(target.get("char_spacing_variance", 0.0))
+        words = full_text_lower.split()
+        total_words = len(words) if len(words) > 0 else 1
+        total_chars = len(full_text) if len(full_text) > 0 else 1
 
-        if ocr_conf < 82.0: 
-            s_integrity -= ((82.0 - ocr_conf) * 1.5)
-        if spacing_var > 30000.0: 
-            s_integrity -= 15.0
+        # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
+        ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
+        spacing_var = float(target.get("character_spacing_var", 0.0))
+
+        s_integrity = ocr_conf 
+
+        if spacing_var > 0:
+            spacing_penalty = min(25.0, (spacing_var / 2000.0)) 
+            s_integrity -= spacing_penalty
+
+        num_lines = float(target.get("num_lines", 1.0))
+        num_lines = num_lines if num_lines > 0 else 1.0
+        char_per_line_ratio = total_chars / num_lines
         
+        if char_per_line_ratio > 80.0:  
+            s_integrity -= min(30.0, (char_per_line_ratio - 80.0) * 0.5)
+
         s_integrity = max(0.0, min(100.0, s_integrity))
 
-        # --- METRIC 1: LOOK & FEEL SCORE ---
+        # --- METRIC 1 & 2: MACHINE LEARNING SPATIAL LAYOUTS ---
         raw_lf = np.array([[float(target["layout_density_ratio"]), float(target["receipt_length"]), float(target["aspect_ratio"])]])
         scaled_lf = self.look_feel_scaler.transform(raw_lf)
         lf_ml_score = self.look_feel_model.decision_function(scaled_lf)[0]
-        s_look_feel = max(0.0, min(100.0, (lf_ml_score + 0.45) * 200.0))
 
-        # --- METRIC 2: STRUCTURE & FORMAT SCORE ---
-        raw_sf = np.array([[float(target["num_lines"]), float(target["vertical_alignment_variance"])]])
+        raw_sf = np.array([[float(target["num_lines"]), float(target["vertical_alignment_variance"]), char_per_line_ratio]])
         scaled_sf = self.structure_scaler.transform(raw_sf)
         sf_ml_score = self.structure_model.decision_function(scaled_sf)[0]
-        s_structure = max(0.0, min(100.0, (sf_ml_score + 0.45) * 200.0))
+
+        # 🧠 THE PURE ML OUTPUT RULE + CHARACTER METRIC EXTREME SHIELD
+        if lf_ml_score < 0.0 or sf_ml_score < 0.0 or len(full_text) > 15000:
+            return 0.0, 0.0, 0.0, 0.0
+
+        s_look_feel = max(0.0, min(100.0, (lf_ml_score + 0.35) * 175.0))
+        s_structure = max(0.0, min(100.0, (sf_ml_score + 0.35) * 175.0))
 
         # --- METRIC 3: CONTENT ACCURACY SCORE ---
-        s_content = 100.0
-        new_merchant = str(target.get("merchant", "")).lower().strip()
-        new_total = float(target.get("total_amount", 0.0))
-        new_date = str(target.get("date", "")).lower().strip()
-
-        missing_total = (new_total <= 0.0)
-        missing_merchant = ("unknown" in new_merchant)
-        missing_date = ("unknown" in new_date)
-
-        if missing_total: s_content -= 15.0
+        receipt_anchors = ["total", "amount", "rm", "cash", "change", "tax", "subtotal", "inv", "thank", "qty", "price", "item"]
+        keyword_count = sum(full_text_lower.count(anchor) for anchor in receipt_anchors)
+        keyword_density = (keyword_count / total_words) * 100.0
         
-        # DYNAMIC ACCURACY CALIBRATION:
-        if missing_merchant:
-            if s_integrity >= 75.0:
-                s_content -= 7.0  # High clarity image, likely just a cropped header
-            else:
-                s_content -= 15.0 # Low clarity image + unknown merchant is suspicious
-                
-        if missing_date: s_content -= 5.0
-        if int(target.get("math_valid_flag", 1)) == 0: s_content -= 15.0
+        s_content = min(100.0, keyword_density * 10.0) 
 
-        # The Conditional Cascade Penalty Matrix
-        if missing_total and missing_date:
-            s_content -= 30.0  
-        elif missing_merchant and missing_total:
-            s_content -= 25.0
-        elif missing_merchant and missing_date:
-            s_content -= 20.0
+        new_merchant = str(target.get("merchant", "")).lower().strip()
+        new_date = str(target.get("date", "")).lower().strip()
+        
+        try:
+            new_total = float(target.get("total_amount", 0.0))
+        except (ValueError, TypeError):
+            new_total = 0.0
+
+        if new_total <= 0.0: s_content -= 15.0
+        if "unknown" in new_merchant: s_content -= 10.0
+        if "unknown" in new_date: s_content -= 5.0
+        if int(target.get("math_valid_flag", 1)) == 0: s_content -= 15.0
 
         s_content = max(0.0, min(100.0, s_content))
 
+        # --- DUPLICATE HISTORY TRANSACTION CHECK ---
         for _, row in history_df.iterrows():
-            if abs(new_total - float(row.get("total_amount", 0.0))) < 0.01:
-                text_sim = SequenceMatcher(None, new_merchant, str(row.get("merchant", "")).lower().strip()).ratio()
-                if text_sim > 0.85 and str(row.get("date", "")).strip().lower() == new_date:
-                    s_content = 0.0  
-                    break
+            try:
+                hist_total = float(row.get("total_amount", 0.0))
+                if abs(new_total - hist_total) < 0.01:
+                    text_sim = SequenceMatcher(None, new_merchant, str(row.get("merchant", "")).lower().strip()).ratio()
+                    if text_sim > 0.85 and str(row.get("date", "")).strip().lower() == new_date:
+                        s_content = 0.0  
+                        break
+            except (ValueError, TypeError):
+                continue
 
         return round(s_look_feel, 1), round(s_structure, 1), round(s_content, 1), round(s_integrity, 1)
-
+    
 def run_evaluation_suite():
     print("🚨 [EVALUATION ENGINE RUNNING] Pulling database records...")
     session = SessionLocal()
@@ -113,7 +125,7 @@ def run_evaluation_suite():
         for r in records:
             current_label = getattr(r, 'fraud_label', '')
             
-            # --- 🛡️ ENGINE GATE 1: CHECK FOR INGESTION ENGINE FLAGS FIRST ---
+            # --- 🛡️ ENGINE GATE 1: INGESTION ENGINE FLAGS ---
             if current_label == "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)":
                 s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
                 composite_score = 0.0
@@ -129,31 +141,28 @@ def run_evaluation_suite():
                 current_target.pop('_sa_instance_state', None)
                 df_background = df_master[df_master['filename'] != r.filename]
                 
-                # Still calculate the 4 scores so the audit sheet shows the spatial data
                 s_lf, s_sf, s_ca, s_ti = engine.calculate_four_scores(current_target, df_background)
                 composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
                 
-                # 🧠 INTELLIGENT VERIFICATION: Check if this is just a normal layout reuse
                 target_date = str(r.date).strip().lower()
-                target_total = float(r.total_amount)
+                try:
+                    target_total = float(r.total_amount)
+                except (ValueError, TypeError):
+                    target_total = 0.0
                 
-                # Scan history to see if any background document matches layout AND financial specs
                 strict_clash = df_background[
                     (df_background['date'].str.strip().str.lower() == target_date) & 
                     (df_background['total_amount'].astype(float) == target_total)
                 ]
                 
-                # If date/amount match a background record, it's an illegal clone submission
                 if not strict_clash.empty and target_date != "unknown date" and target_total > 0.0:
                     verdict_label = "SELECTED FOR MANUAL REVIEW (🚨 PHYSICAL TEMPLATE FRAUD)"
                 else:
-                    # Layout reuse but completely unique transaction details -> Legitimate receipt!
-                    # Let the standard dynamic ML scoring handle the verdict cleanly
                     if s_ti < 25.0 or s_sf < 20.0:
                         composite_score = 0.0
                         verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
                     elif s_ca == 0.0:
-                        verdict_label = "REJECTED (DUPLICATE TRANS CLONE)"
+                        verdict_label = "REJECTED (DUPLICATE/NON-RECEIPT)"
                     elif composite_score >= 83.0: 
                         verdict_label = "APPROVED FOR REIMBURSEMENT"
                     elif 60.0 <= composite_score < 83.0:
@@ -161,7 +170,7 @@ def run_evaluation_suite():
                     else:
                         verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
 
-            # --- ENGINE GATE 2: EVALUATE STANDARD GENUINE RECEIPTS VIA DYNAMIC MACHINE LEARNING ---
+            # --- ENGINE GATE 2: STANDARD EVALUATION ---
             else:
                 current_target = r.__dict__.copy()
                 current_target.pop('_sa_instance_state', None)
@@ -170,8 +179,7 @@ def run_evaluation_suite():
                 s_lf, s_sf, s_ca, s_ti = engine.calculate_four_scores(current_target, df_background)
                 composite_score = (s_lf + s_sf + s_ca + s_ti) / 4.0
                 
-                # --- ACCURACY UPGRADE: SECURITY OVERRIDE GATES ---
-                if s_ti < 25.0 or s_sf < 20.0:
+                if s_ti < 25.0 or s_sf < 20.0 or len(str(r.full_raw_text)) > 15000:
                     composite_score = 0.0
                     verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
                 elif s_ca == 0.0:
@@ -183,7 +191,7 @@ def run_evaluation_suite():
                 else:
                     verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
 
-            # Sync updated database parameters completely
+            # Update row fields
             r.score_look_feel = s_lf
             r.score_structure_format = s_sf  
             r.score_content_accuracy = s_ca
@@ -191,14 +199,28 @@ def run_evaluation_suite():
             r.fraud_score = f"{composite_score:.1f}%"
             r.fraud_label = verdict_label
 
-            print(f"📄 File: {r.filename:<12} | Merchant: {str(r.merchant)[:18]:<18}")
-            print(f" 🎚️ [OVERALL SCALE]: {r.fraud_score} -> *** {verdict_label} ***")
-            print(f" ├─ 1. Look & Feel Score         : {s_lf}%")
-            print(f" ├─ 2. Structure & Format Score  : {s_sf}%")
-            print(f" ├─ 3. Content Accuracy Score    : {s_ca}%")
-            print(f" └─ 4. Text Integrity Score      : {s_ti}%")
-            print("-" * 80)
-        session.commit()
+            # 🎯 THE TRUTH TRACKER DIRECTIVE:
+            if "12" in str(r.filename) or "1066" in str(r.id):
+                print("\n🔍 [DIAGNOSTIC CRITICAL INTERCEPT]")
+                print(f"   - Target Filename: {r.filename}")
+                print(f"   - Total Character Length Extracted: {len(str(r.full_raw_text))}")
+                print(f"   - Calculated Composite Score: {composite_score}")
+                print(f"   - Decoded Verdict Label: {verdict_label}")
+                
+                # Check actual database connection metadata strings
+                try:
+                    bind_url = session.get_bind().url
+                    print(f"   - Writing to Active DB URL Path: {bind_url}")
+                except Exception:
+                    pass
+
+            # 🎯 Progressive inline commits block silent background crash rollbacks
+            try:
+                session.commit()
+            except Exception as row_err:
+                session.rollback()
+                print(f"⚠️ Warning: Skipping lock on record {r.filename}: {row_err}")
+
         print("💾 [SQLITE SUCCESS] Multi-criteria dynamic evaluation synced to database tables!")
         
     except Exception as e:

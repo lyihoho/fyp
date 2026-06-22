@@ -21,7 +21,7 @@ def train_and_export_models():
     session = SessionLocal()
     
     try:
-        receipts = session.query(Receipt).all()
+        receipts = session.query(Receipt).filter(Receipt.id<708).all()
         if len(receipts) < 5:
             print(f"❌ Error: Found only {len(receipts)} records. You need more rows before training.")
             return
@@ -34,7 +34,7 @@ def train_and_export_models():
         os.makedirs(MODELS_DIR, exist_ok=True)
 
         # ---------------------------------------------------------------------
-        # LAYER 1: SCALING & TRAINING LOOK & FEEL FORREST
+        # LAYER 1: SCALING & TRAINING LOOK & FEEL FOREST
         # ---------------------------------------------------------------------
         X_lf = df[["layout_density_ratio", "receipt_length", "aspect_ratio"]].values
         print(f"📊 Standardizing & Training Look & Feel Forest on {len(X_lf)} rows...")
@@ -51,10 +51,22 @@ def train_and_export_models():
         joblib.dump(scaler_lf, LF_SCALER_PATH)
 
         # ---------------------------------------------------------------------
-        # LAYER 2: SCALING & TRAINING STRUCTURE & FORMAT FORREST
+        # LAYER 2: SCALING & TRAINING STRUCTURE & FORMAT FOREST (FEATURE ADDITION)
         # ---------------------------------------------------------------------
-        X_sf = df[["num_lines", "vertical_alignment_variance"]].values
-        print(f"📐 Standardizing & Training Structure Forest on {len(X_sf)} rows...")
+        print("📐 Engineering structural density features from existing raw text vectors...")
+        
+        # Safely extract text lengths dynamically from existing string storage columns
+        df['total_chars'] = df['full_raw_text'].fillna('').str.len()
+        
+        # Protect against division by zero errors for unreadable lines
+        df['safe_num_lines'] = df['num_lines'].apply(lambda x: float(x) if float(x) > 0 else 1.0)
+        
+        # Construct the new math dimension on the fly 
+        df['chars_per_line'] = df['total_chars'] / df['safe_num_lines']
+
+        # Feed the expanded 3D vector matrix [num_lines, vertical_alignment_variance, chars_per_line]
+        X_sf = df[["num_lines", "vertical_alignment_variance", "chars_per_line"]].values
+        print(f"📐 Standardizing & Training Structure Forest on {len(X_sf)} rows with 3 features...")
         
         # Instantiate and fit variance normalizer to protect against handheld distance skewing
         scaler_sf = StandardScaler()
