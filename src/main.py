@@ -59,7 +59,7 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
     print("=" * 40)
 
 if __name__ == "__main__":
-    RAW_RECEIPTS_FOLDER = "data/test"
+    RAW_RECEIPTS_FOLDER = "data/test_2"
     BACKUP_DATA_CSV = "data/anomaly_detection_input.csv"
     
     # 🛠️ YOUR MASTER SWITCH:

@@ -160,12 +160,10 @@ def run_evaluation_suite():
                 else:
                     if s_ti < 25.0 or s_sf < 20.0:
                         composite_score = 0.0
-                        verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
+                        verdict_label = "REJECTED (CORRUPT TEXT)"
                     elif s_ca == 0.0:
                         verdict_label = "REJECTED (DUPLICATE/NON-RECEIPT)"
-                    elif composite_score >= 83.0: 
-                        verdict_label = "APPROVED FOR REIMBURSEMENT"
-                    elif 60.0 <= composite_score < 83.0:
+                    elif composite_score >= 60:
                         verdict_label = "SELECTED FOR MANUAL REVIEW"
                     else:
                         verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
@@ -199,20 +197,6 @@ def run_evaluation_suite():
             r.fraud_score = f"{composite_score:.1f}%"
             r.fraud_label = verdict_label
 
-            # 🎯 THE TRUTH TRACKER DIRECTIVE:
-            if "12" in str(r.filename) or "1066" in str(r.id):
-                print("\n🔍 [DIAGNOSTIC CRITICAL INTERCEPT]")
-                print(f"   - Target Filename: {r.filename}")
-                print(f"   - Total Character Length Extracted: {len(str(r.full_raw_text))}")
-                print(f"   - Calculated Composite Score: {composite_score}")
-                print(f"   - Decoded Verdict Label: {verdict_label}")
-                
-                # Check actual database connection metadata strings
-                try:
-                    bind_url = session.get_bind().url
-                    print(f"   - Writing to Active DB URL Path: {bind_url}")
-                except Exception:
-                    pass
 
             # 🎯 Progressive inline commits block silent background crash rollbacks
             try:
