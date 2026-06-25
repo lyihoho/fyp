@@ -4,9 +4,7 @@ import cv2
 import numpy as np
 import base64
 
-# ==============================================================================
-# ENGINE 1: DEEP LEARNING TEXT-SIGNATURE COMPARISON (CONTENT DUPES)
-# ==============================================================================
+# DEEP LEARNING TEXT COMPARISON
 def calculate_text_similarity(text1, text2):
     """
     Computes a clean similarity percentage (0% to 100%) between two text blocks
@@ -39,9 +37,7 @@ def calculate_text_similarity(text1, text2):
     
     return (1.0 - (lev_dist / max_len)) * 100
 
-# ==============================================================================
-# ENGINE 2: COMPUTER VISION ORB CODES & DATABASE SERIALIZERS (PHYSICAL FOLDS)
-# ==============================================================================
+# COMPUTER VISION ORB CODES & DATABASE SERIALIZERS (PHYSICAL FOLDS)
 def serialize_descriptors(descriptors):
     """Converts raw OpenCV ORB matrices to a base64 text string for SQLite."""
     if descriptors is None:
@@ -80,9 +76,7 @@ def check_physical_duplicate(img_path1, img_path2):
     
     return len(good_matches), len(kp1)
 
-# ==============================================================================
-# LOCAL TESTING PIPELINE
-# ==============================================================================
+
 if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
@@ -105,23 +99,23 @@ if __name__ == "__main__":
         with open(file2_txt, "r", encoding="utf-8") as f: text_receipt_2 = f.read()
         
         match_percentage = calculate_text_similarity(text_receipt_1, text_receipt_2)
-        print(f"📊 [ENGINE 1] Evaluated Text-Signature Overlap: {match_percentage:.2f}%")
+        print(f"Evaluated Text-Signature Overlap: {match_percentage:.2f}%")
     else:
-        print("⏭️ [ENGINE 1] Skipping text verification (.txt logs missing)")
+        print("Skipping text verification (.txt logs missing)")
 
-    print("-"*80)
+    print("-"*20)
 
     # 2. Geometric Folds Gate
     if os.path.exists(file1_img) and os.path.exists(file2_img):
         good_matches, total_kp = check_physical_duplicate(file1_img, file2_img)
-        print(f"📑 [ENGINE 2] Base Image Features Found: {total_kp}")
-        print(f"🔗 [ENGINE 2] Cross-Matched Keypoints   : {good_matches}")
+        print(f"Base Image Features Found: {total_kp}")
+        print(f"Cross-Matched Keypoints   : {good_matches}")
         
         if good_matches > 50:
-            print("🚨 ALERT: High physical alignment! Exact same paper creases or angles.")
+            print("ALERT: High physical alignment! Exact same paper creases or angles.")
         else:
-            print("✅ SAFE: Distinct physical surfaces.")
+            print("SAFE: Distinct physical surfaces.")
     else:
-        print("⏭️ [ENGINE 2] Skipping geometric validation (Image assets missing)")
+        print("Skipping geometric validation (Image assets missing)")
         
-    print("="*80)
+    print("="*20)

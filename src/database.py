@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, String, Float, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Resolve absolute path to project directory cleanly
+# Point absolute path to project directory cleanly
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'receipts.db')}"
 
@@ -21,7 +21,7 @@ class Receipt(Base):
     date = Column(String, default="Unknown Date")
     total_amount = Column(Float, default=0.0)
     
-    # --- ISOLATION FOREST STRUCTURAL ATOMS ---
+    # --- ISOLATION FOREST COLUMNS ---
     receipt_length = Column(Integer, default=0)
     num_lines = Column(Integer, default=0)
     layout_density_ratio = Column(Float, default=0.0)
@@ -35,22 +35,19 @@ class Receipt(Base):
     fraud_score = Column(String, default="pending")
     fraud_label = Column(String, default="pending")
 
-    # --- THE ACADEMIC DUAL-SECURITY FIELDS ---
+    # --- DUPE CHECKING FIELDS ---
     full_raw_text = Column(Text, nullable=True)
     feature_descriptors = Column(Text, nullable=True)
 
-    # ==========================================================================
-    # 📊 THE FIXED FOUR CORE VECTOR SCORE METRICS COLUMNS
-    # ==========================================================================
-    score_look_feel = Column(Float, nullable=True)         # Metric 1
-    score_content_accuracy = Column(Float, nullable=True)   # Metric 2
-    score_text_integrity = Column(Float, nullable=True)     # Metric 3
-    score_structure_format = Column(Float, nullable=True)   # Metric 4
+    # FOUR SCORE METRICS COLUMNS
+    score_look_feel = Column(Float, nullable=True)         
+    score_content_accuracy = Column(Float, nullable=True)   
+    score_text_integrity = Column(Float, nullable=True)     
+    score_structure_format = Column(Float, nullable=True)   
 
 def init_db():
-    """Initializes the database tables completely from SQLAlchemy metadata definitions."""
     Base.metadata.create_all(bind=engine)
-    print("✅ Database schema initialized completely via init_db().")
+    print("Database schema initialized")
 
 if __name__ == "__main__":
     init_db()

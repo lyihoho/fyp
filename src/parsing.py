@@ -5,12 +5,12 @@ import os
 import re
 import json
 import ollama
-import joblib  # 🎯 FIXED: Imported joblib for machine learning model loading
+import joblib 
 from sqlalchemy import text
 from database import SessionLocal, Receipt, Base, engine
-from paddleocr import PaddleOCR  # <-- Modern Deep Learning OCR
+from paddleocr import PaddleOCR 
 
-# 🎯 FIXED IMPORTS: Pulling Levenshtein similarity and ORB serializers to load values to separate columns!
+# Levenshtein similarity and ORB serializers to load values to separate columns
 from dupe_detect import (
     calculate_text_similarity,
     serialize_descriptors,
@@ -19,7 +19,7 @@ from dupe_detect import (
 
 Base.metadata.create_all(bind=engine)
 
-# --- SECTION 3.6: INITIALIZE DEEP LEARNING OCR MODEL ---
+# Initialize deep learning ocr
 ocr_model = PaddleOCR(lang='en')
 
 try:
@@ -87,7 +87,7 @@ def extract_structural_and_content_features(image_path):
                 
     data = pd.DataFrame(parsed_words)
     
-    # 🛡️ THE INGESTION GATEKEEPER: Tightened to 0.82
+    # Check for empty data
     if data.empty or len(data) < 5 or data['conf'].mean() < 0.82: 
         return {
             "filename": os.path.basename(image_path),
@@ -193,7 +193,8 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
     db_session = SessionLocal()
 
     try:
-        # 🚫 COMMENT OUT OR REMOVE THESE LINES WHEN NO MORE TRAINING IS NEEDED
+        # REMOVE THESE LINES WHEN NO MORE TRAINING IS NEEDED
+        # Delete existing db and create a new one
         # db_session.query(Receipt).delete()
         # db_session.commit()
         # try:
@@ -209,14 +210,14 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
         for filename in image_files:
             full_img_path = os.path.join(images_dir, filename)
             
-            # 🎯 RESUMPTION CHECK: Skip this file if it already exists in the database
+            # Skip this file if it already exists in the database
             # already_exists = db_session.query(Receipt).filter(Receipt.filename == filename).first()
             # if already_exists:
             #    continue # 🚀 Instantly skips the image and jumps to the next file
 
-            # 🛡️ THE INSULATION SHIELD: Protect pipeline from internal runtime crashes...
+            # Protect pipeline from internal runtime crashes...
             try:
-                # --- STEP A: EXTRACT GENERAL LOOK & FEEL VIA OCR ---
+                # EXTRACT GENERAL LOOK & FEEL VIA OCR
                 extracted_row = extract_structural_and_content_features(full_img_path)
                 
                 if not extracted_row:
@@ -224,7 +225,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
 
                 master_feature_pool.append(extracted_row)
                 
-                # --- STEP B: COMPUTE AND ENCODE THE LIVE ORB DESCRIPTORS ---
+                # COMPUTE AND ENCODE THE LIVE ORB DESCRIPTORS
                 img_gray = cv2.imread(full_img_path, cv2.IMREAD_GRAYSCALE)
                 current_serialized_orb = ""
                 live_des = None
@@ -252,7 +253,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                             if t_score >= 95.0:
                                 is_textual_duplicate = True
 
-                        # 2. Base64 Geometric Matrix Re-Construction Checking
+                        # Base64 Geometric Matrix Checking
                         past_orb_b64 = record.feature_descriptors
                         if past_orb_b64 and live_des is not None:
                             reconstructed_past_des = deserialize_descriptors(past_orb_b64)
@@ -265,19 +266,19 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                                 if orb_count > 50:
                                     is_physical_duplicate = True
 
-                # --- STEP C: MULTI-MODAL SECURITY ROUTING ENGINE ---
+                # MULTI-MODAL SECURITY ROUTING
                 if extracted_row['unreadable_gate_flag']:
                     final_label = "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)"
                     final_score = "0%"
                 else:
                     if is_physical_duplicate and not is_textual_duplicate:
-                        final_label = "🚨 PHYSICAL TEMPLATE FRAUD"
+                        final_label = "PHYSICAL TEMPLATE FRAUD"
                         final_score = f"ORB Match Block ({highest_orb_matches} Pts)"
                     elif is_textual_duplicate and is_physical_duplicate:
-                        final_label = "🛑 STANDARD DUPLICATE"
+                        final_label = "STANDARD DUPLICATE"
                         final_score = f"Exact Clone ({highest_text_score:.1f}% Text / {highest_orb_matches} Pts)"
                     elif is_textual_duplicate and not is_physical_duplicate:
-                        final_label = "⚠️ TEXT DATA REUSE CLASH"
+                        final_label = "TEXT DATA REUSE CLASH"
                         final_score = f"Text Hijack Overlap ({highest_text_score:.1f}%)"
                     else:
                         final_label = "pending"
@@ -332,7 +333,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                     fraud_label=final_label,
                     fraud_score=final_score,
 
-                    # 🎯 FIXED: Direct, isolated mapping to store your actual metrics
+                    # Direct, isolated mapping to store actual metrics
                     score_look_feel=lf_score if not extracted_row['unreadable_gate_flag'] else 0.0,
                     score_structure_format=sf_score if not extracted_row['unreadable_gate_flag'] else 0.0,
                     score_content_accuracy=ca_score,
@@ -340,18 +341,18 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                 )
                 db_session.add(new_receipt)
                 
-                # Commit progressively file-by-file so that if anything crashes later, progress is locked in!
+                # Commit progressively file-by-file 
                 db_session.commit()
 
             except Exception as loop_error:
                 db_session.rollback()
-                print(f"⚠️ Skipped corrupted image [{filename}] due to ingestion engine error: {loop_error}")
+                print(f"Skipped corrupted image [{filename}] due to ingestion engine error: {loop_error}")
                 continue
                 
-        print("\n💾 [SQLITE SUCCESS] Deep Learning & Computer Vision metrics ledger initialized completely.")
+        print("\nDeep Learning & Computer Vision metrics ledger initialized completely.")
     except Exception as e:
         db_session.rollback()
-        print(f"❌ Ingestion Error: {str(e)}")
+        print(f"Ingestion Error: {str(e)}")
     finally: db_session.close()
 
     if master_feature_pool:

@@ -23,7 +23,7 @@ def train_and_export_models():
     try:
         receipts = session.query(Receipt).filter(Receipt.id<708).all()
         if len(receipts) < 5:
-            print(f"❌ Error: Found only {len(receipts)} records. You need more rows before training.")
+            print(f"Error: Found only {len(receipts)} records. You need more rows before training.")
             return
 
         # Convert to DataFrame cleanly for matrix extraction slicing
@@ -33,9 +33,7 @@ def train_and_export_models():
 
         os.makedirs(MODELS_DIR, exist_ok=True)
 
-        # ---------------------------------------------------------------------
-        # LAYER 1: SCALING & TRAINING LOOK & FEEL FOREST
-        # ---------------------------------------------------------------------
+        # TRAINING LOOK AND FEEL FOREST
         X_lf = df[["layout_density_ratio", "receipt_length", "aspect_ratio"]].values
         print(f"📊 Standardizing & Training Look & Feel Forest on {len(X_lf)} rows...")
         
@@ -50,9 +48,7 @@ def train_and_export_models():
         joblib.dump(lf_model, LF_MODEL_PATH)
         joblib.dump(scaler_lf, LF_SCALER_PATH)
 
-        # ---------------------------------------------------------------------
-        # LAYER 2: SCALING & TRAINING STRUCTURE & FORMAT FOREST (FEATURE ADDITION)
-        # ---------------------------------------------------------------------
+        # TRAINING STRUCTURE AND FORMAT FOREST
         print("📐 Engineering structural density features from existing raw text vectors...")
         
         # Safely extract text lengths dynamically from existing string storage columns
@@ -61,12 +57,12 @@ def train_and_export_models():
         # Protect against division by zero errors for unreadable lines
         df['safe_num_lines'] = df['num_lines'].apply(lambda x: float(x) if float(x) > 0 else 1.0)
         
-        # Construct the new math dimension on the fly 
+        # Construct the new math dimension
         df['chars_per_line'] = df['total_chars'] / df['safe_num_lines']
 
         # Feed the expanded 3D vector matrix [num_lines, vertical_alignment_variance, chars_per_line]
         X_sf = df[["num_lines", "vertical_alignment_variance", "chars_per_line"]].values
-        print(f"📐 Standardizing & Training Structure Forest on {len(X_sf)} rows with 3 features...")
+        print(f"Standardizing & Training Structure Forest on {len(X_sf)} rows with 3 features...")
         
         # Instantiate and fit variance normalizer to protect against handheld distance skewing
         scaler_sf = StandardScaler()
@@ -79,11 +75,11 @@ def train_and_export_models():
         joblib.dump(sf_model, SF_MODEL_PATH)
         joblib.dump(scaler_sf, SF_SCALER_PATH)
 
-        print("\n📦 [EXPORT SUCCESS] All 2 Models and 2 Scalers successfully frozen as binaries!")
-        print(f" 👉 Model Directory Assets: {MODELS_DIR}")
+        print("\nAll Models and Scalers successfully frozen as binaries")
+        print(f"Model Directory: {MODELS_DIR}")
 
     except Exception as e:
-        print(f"❌ Critical Error during model training: {str(e)}")
+        print(f"Error during model training: {str(e)}")
     finally:
         session.close()
 

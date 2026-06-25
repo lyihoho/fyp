@@ -15,7 +15,7 @@ SF_SCALER_PATH = os.path.join(MODELS_DIR, "structure_scaler.pkl")
 class MultiCriteriaAnomalyEngine:
     def __init__(self):
         if not all(os.path.exists(p) for p in [LF_MODEL_PATH, SF_MODEL_PATH, LF_SCALER_PATH, SF_SCALER_PATH]):
-            raise FileNotFoundError("❌ Trained model files or scalers missing! Run train_model.py first.")
+            raise FileNotFoundError("Trained model files or scalers missing! Run train_model.py first.")
         
         self.look_feel_model = joblib.load(LF_MODEL_PATH)
         self.structure_model = joblib.load(SF_MODEL_PATH)
@@ -30,7 +30,7 @@ class MultiCriteriaAnomalyEngine:
         total_words = len(words) if len(words) > 0 else 1
         total_chars = len(full_text) if len(full_text) > 0 else 1
 
-        # --- METRIC 4: TEXT INTEGRITY & TAMPER SCORE ---
+        # METRIC 4: TEXT INTEGRITY & TAMPER SCORE
         ocr_conf = float(target.get("avg_ocr_confidence", 100.0))
         spacing_var = float(target.get("character_spacing_var", 0.0))
 
@@ -49,7 +49,7 @@ class MultiCriteriaAnomalyEngine:
 
         s_integrity = max(0.0, min(100.0, s_integrity))
 
-        # --- METRIC 1 & 2: MACHINE LEARNING SPATIAL LAYOUTS ---
+        # METRIC 1 & 2: MACHINE LEARNING SPATIAL LAYOUTS
         raw_lf = np.array([[float(target["layout_density_ratio"]), float(target["receipt_length"]), float(target["aspect_ratio"])]])
         scaled_lf = self.look_feel_scaler.transform(raw_lf)
         lf_ml_score = self.look_feel_model.decision_function(scaled_lf)[0]
@@ -58,14 +58,14 @@ class MultiCriteriaAnomalyEngine:
         scaled_sf = self.structure_scaler.transform(raw_sf)
         sf_ml_score = self.structure_model.decision_function(scaled_sf)[0]
 
-        # 🧠 THE PURE ML OUTPUT RULE + CHARACTER METRIC EXTREME SHIELD
+        # PURE ML OUTPUT RULE + CHARACTER METRIC EXTREME SHIELD
         if lf_ml_score < 0.0 or sf_ml_score < 0.0 or len(full_text) > 15000:
             return 0.0, 0.0, 0.0, 0.0
 
         s_look_feel = max(0.0, min(100.0, (lf_ml_score + 0.35) * 175.0))
         s_structure = max(0.0, min(100.0, (sf_ml_score + 0.35) * 175.0))
 
-        # --- METRIC 3: CONTENT ACCURACY SCORE ---
+        # METRIC 3: CONTENT ACCURACY SCORE
         receipt_anchors = ["total", "amount", "rm", "cash", "change", "tax", "subtotal", "inv", "thank", "qty", "price", "item"]
         keyword_count = sum(full_text_lower.count(anchor) for anchor in receipt_anchors)
         keyword_density = (keyword_count / total_words) * 100.0
@@ -87,7 +87,7 @@ class MultiCriteriaAnomalyEngine:
 
         s_content = max(0.0, min(100.0, s_content))
 
-        # --- DUPLICATE HISTORY TRANSACTION CHECK ---
+        # DUPLICATE HISTORY TRANSACTION CHECK
         for _, row in history_df.iterrows():
             try:
                 hist_total = float(row.get("total_amount", 0.0))
@@ -102,13 +102,13 @@ class MultiCriteriaAnomalyEngine:
         return round(s_look_feel, 1), round(s_structure, 1), round(s_content, 1), round(s_integrity, 1)
     
 def run_evaluation_suite():
-    print("🚨 [EVALUATION ENGINE RUNNING] Pulling database records...")
+    print("\nRunning Evaluation, Pulling database records...")
     session = SessionLocal()
     
     try:
         records = session.query(Receipt).all()
         if not records:
-            print("❌ Error: No parsed records found in the database. Run parsing.py first.")
+            print("Error: No parsed records found in the database. Run parsing.py first.")
             return
 
         data_pool = []
@@ -120,23 +120,23 @@ def run_evaluation_suite():
         df_master = pd.DataFrame(data_pool)
         engine = MultiCriteriaAnomalyEngine()
         
-        print("\n" + "="*80 + "\n⚙️ RUNTIME EVALUATION: AUDIT COMPLIANCE SWITCHBOARD\n" + "="*80)
+        print("\n" + "="*80 + "\nRUNTIME EVALUATION OUTPUT\n" + "="*20)
 
         for r in records:
             current_label = getattr(r, 'fraud_label', '')
             
-            # --- 🛡️ ENGINE GATE 1: INGESTION ENGINE FLAGS ---
+            # GATE 1: INGESTION ENGINE FLAGS 
             if current_label == "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)":
                 s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
                 composite_score = 0.0
                 verdict_label = "REJECTED (IMAGE UNREADABLE - PROMPT RE-UPLOAD)"
                 
-            elif current_label == "🛑 STANDARD DUPLICATE":
+            elif current_label == "STANDARD DUPLICATE":
                 s_lf, s_sf, s_ca, s_ti = 0.0, 0.0, 0.0, 0.0
                 composite_score = 0.0
                 verdict_label = "REJECTED (DUPLICATE CLAIM BLOCK)"
                 
-            elif current_label == "🚨 PHYSICAL TEMPLATE FRAUD":
+            elif current_label == "PHYSICAL TEMPLATE FRAUD":
                 current_target = r.__dict__.copy()
                 current_target.pop('_sa_instance_state', None)
                 df_background = df_master[df_master['filename'] != r.filename]
@@ -156,7 +156,7 @@ def run_evaluation_suite():
                 ]
                 
                 if not strict_clash.empty and target_date != "unknown date" and target_total > 0.0:
-                    verdict_label = "SELECTED FOR MANUAL REVIEW (🚨 PHYSICAL TEMPLATE FRAUD)"
+                    verdict_label = "SELECTED FOR MANUAL REVIEW (PHYSICAL TEMPLATE FRAUD)"
                 else:
                     if s_ti < 25.0 or s_sf < 20.0:
                         composite_score = 0.0
@@ -166,7 +166,7 @@ def run_evaluation_suite():
                     elif composite_score >= 60:
                         verdict_label = "SELECTED FOR MANUAL REVIEW"
                     else:
-                        verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
+                        verdict_label = "REJECTED (SUSPECT IMAGE OUTLIER)"
 
             # --- ENGINE GATE 2: STANDARD EVALUATION ---
             else:
@@ -179,15 +179,15 @@ def run_evaluation_suite():
                 
                 if s_ti < 25.0 or s_sf < 20.0 or len(str(r.full_raw_text)) > 15000:
                     composite_score = 0.0
-                    verdict_label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
+                    verdict_label = "REJECTED (CORRUPT TEXT)"
                 elif s_ca == 0.0:
-                    verdict_label = "REJECTED (DUPLICATE TRANS CLONE)"
+                    verdict_label = "REJECTED (DUPLICATE)"
                 elif composite_score >= 83.0: 
                     verdict_label = "APPROVED FOR REIMBURSEMENT"
                 elif 60.0 <= composite_score < 83.0:
                     verdict_label = "SELECTED FOR MANUAL REVIEW"
                 else:
-                    verdict_label = "REJECTED (SUSPECT PROFILE OUTLIER)"
+                    verdict_label = "REJECTED (SUSPECT IMAGE OUTLIER)"
 
             # Update row fields
             r.score_look_feel = s_lf
@@ -198,18 +198,18 @@ def run_evaluation_suite():
             r.fraud_label = verdict_label
 
 
-            # 🎯 Progressive inline commits block silent background crash rollbacks
+            # Progressive inline commits block silent background crash rollbacks
             try:
                 session.commit()
             except Exception as row_err:
                 session.rollback()
-                print(f"⚠️ Warning: Skipping lock on record {r.filename}: {row_err}")
+                print(f"Skipping lock on record {r.filename}: {row_err}")
 
-        print("💾 [SQLITE SUCCESS] Multi-criteria dynamic evaluation synced to database tables!")
+        print("Multi-criteria dynamic evaluation synced to database")
         
     except Exception as e:
         session.rollback()
-        print(f"❌ Critical Evaluation Error: {str(e)}")
+        print(f"Critical Evaluation Error: {str(e)}")
     finally:
         session.close()
 

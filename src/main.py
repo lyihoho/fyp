@@ -3,66 +3,54 @@ import os
 import sys
 import time
 from database import init_db, SessionLocal, Receipt
-
-# Import your architectural modules
 import parsing
 import train_model
 import anomalydetection
-#import report_generator
 
 def execute_pipeline(images_directory, output_csv_backup, production_mode=False):
-    print("=" * 40)
-    print(f"PIPELINE STARTING | MODE: {'PRODUCTION' if production_mode else 'BASELINE TRAINING'}")
-    print("=" * 40)
+    print("=" * 20)
+    print(f"PIPELINE STARTING | MODE: {'PRODUCTION' if production_mode else 'TRAINING'}")
+    print("=" * 20)
     start_time = time.time()
 
-    # Step 0: Ensure database infrastructure slots are ready
+    # ensure database infrastructure slots are ready
     init_db()
 
-    # ---------------------------------------------------------------------
-    # SYSTEM MODE A: BASELINE TRAINING
-    # ---------------------------------------------------------------------
+    # TRAINING MODE
     if not production_mode:
-        print("\n[DEVELOPMENT STEP 1] Parsing image directory batch into database rows...")
+        print("\nParsing image batch into database...")
         parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
 
-        print("\n[DEVELOPMENT STEP  2] Re-fitting StandardScaler matrices & Isolation Forests...")
+        print("\nTraining and exporting Isolation Forest models...")
         train_model.train_and_export_models()
 
-        print("\n[DEVELOPMENT STEP 3] Re-scoring whole database pool against new baseline...")
+        print("\nScoring and filtering rows...")
         anomalydetection.run_evaluation_suite()
-        
-        # Keep PDF generation turned off during heavy ingestion rounds to save speed
-        print("\n[DEVELOPMENT STEP 4] Skipping PDF generation for batch speed.")
 
-    # ---------------------------------------------------------------------
-    # SYSTEM MODE B: PRODUCTION PIPELINE
-    # ---------------------------------------------------------------------
+
+    # PRODUCTION MODE
     else:
-        print("\n[PRODUCTION STEP 1] Scanning new production upload slot...")
-        # In a live app, images_directory would point to the single uploaded file
-        # parsing.py extracts it, checks uniqueness against DB, and creates a raw row entry.
+        print("\nScanning new upload...")
+        # In gradio, images_directory would point to the uploaded file
+        # parsing.py checks for dupe and creates a raw row entry.
         parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
 
-        print("\nTraining skipped. Using frozen .pkl model weights.")
+        print("\nTraining skipped. Using frozen .pkl files.")
     
 
-        print("\n[PRODUCTION STEP 2] Evaluating fresh row entry against central database metrics...")
+        print("\nEvaluating fresh row entry against metrics...")
         anomalydetection.run_evaluation_suite()
 
-        #print("\n[PRODUCTION STEP 4] Compiling downloadable Turnitin-style PDF audit sheet...")
-        #report_generator.generate_all_pending_reports()
-
     duration = time.time() - start_time
-    print("=" * 40)
-    print(f"🎉 PIPELINE RUN COMPLETED SUCCESSFULLY IN {duration:.2f} SECONDS")
-    print("=" * 40)
+    print("=" * 20)
+    print(f"PIPELINE RUN COMPLETED SUCCESSFULLY IN {duration:.2f} SECONDS")
+    print("=" * 20)
 
 if __name__ == "__main__":
     RAW_RECEIPTS_FOLDER = "data/test_2"
     BACKUP_DATA_CSV = "data/anomaly_detection_input.csv"
     
     # 🛠️ YOUR MASTER SWITCH:
-    # Set to False right now to train system
-    # Set to True later for actual development to lock the models and generate pdf report
+    # Set to False train system
+    # Set to True for actual development to lock the models
     execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=True)
