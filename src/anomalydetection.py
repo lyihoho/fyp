@@ -50,7 +50,7 @@ class MultiCriteriaAnomalyEngine:
         s_integrity = max(0.0, min(100.0, s_integrity))
 
         # METRIC 1 & 2: MACHINE LEARNING SPATIAL LAYOUTS
-        raw_lf = np.array([[float(target["layout_density_ratio"]), float(target["receipt_length"]), float(target["aspect_ratio"])]])
+        raw_lf = np.array([[float(target["layout_density_ratio"]), float(target["receipt_length"]), float(target["num_lines"]), float(target["aspect_ratio"])]])
         scaled_lf = self.look_feel_scaler.transform(raw_lf)
         lf_ml_score = self.look_feel_model.decision_function(scaled_lf)[0]
 

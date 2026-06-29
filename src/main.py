@@ -19,7 +19,7 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
     # TRAINING MODE
     if not production_mode:
         print("\nParsing image batch into database...")
-        parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
+        #parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
 
         print("\nTraining and exporting Isolation Forest models...")
         train_model.train_and_export_models()
@@ -53,4 +53,4 @@ if __name__ == "__main__":
     # 🛠️ YOUR MASTER SWITCH:
     # Set to False train system
     # Set to True for actual development to lock the models
-    execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=True)
+    execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=False)

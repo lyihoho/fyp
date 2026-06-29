@@ -34,7 +34,7 @@ def train_and_export_models():
         os.makedirs(MODELS_DIR, exist_ok=True)
 
         # TRAINING LOOK AND FEEL FOREST
-        X_lf = df[["layout_density_ratio", "receipt_length", "aspect_ratio"]].values
+        X_lf = df[["layout_density_ratio", "receipt_length", "num_lines", "aspect_ratio"]].values
         print(f"📊 Standardizing & Training Look & Feel Forest on {len(X_lf)} rows...")
         
         # Instantiate and fit the mathematical normalization criteria matrix
@@ -62,7 +62,7 @@ def train_and_export_models():
 
         # Feed the expanded 3D vector matrix [num_lines, vertical_alignment_variance, chars_per_line]
         X_sf = df[["num_lines", "vertical_alignment_variance", "chars_per_line"]].values
-        print(f"Standardizing & Training Structure Forest on {len(X_sf)} rows with 3 features...")
+        print(f"Standardizing & Training Structure Forest on {len(X_sf)} rows with 4 features...")
         
         # Instantiate and fit variance normalizer to protect against handheld distance skewing
         scaler_sf = StandardScaler()
