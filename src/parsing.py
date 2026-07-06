@@ -263,7 +263,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                                 orb_count = len(good_matches)
                                 if orb_count > highest_orb_matches:
                                     highest_orb_matches = orb_count
-                                if orb_count > 50:
+                                if orb_count > 120:
                                     is_physical_duplicate = True
 
                 # MULTI-MODAL SECURITY ROUTING

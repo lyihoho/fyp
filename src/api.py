@@ -4,9 +4,7 @@ import sqlite3
 import numpy as np
 import pandas as pd
 import gradio as gr
-import matplotlib.pyplot as plt
 import joblib
-import base64
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -15,17 +13,12 @@ from reportlab.lib import colors
 # Architectural modules for dynamic on-the-fly extraction
 import parsing
 
-# Import your serialization/deserialization helpers from duplicate_detector.py
+# Import your serialization/deserialization helpers from dupe_detect.py
 from dupe_detect import deserialize_descriptors, serialize_descriptors
 
 # Absolute target path pointing to your populated database file
 DB_PATH = r"c:\Users\ASUS\Downloads\fyp\src\receipts.db"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-plt.switch_backend('Agg')
-
-# --- GLOBAL PLOT CACHE MANAGEMENT ---
-cached_fig1, cached_fig2 = None, None
 
 def get_all_records():
     """Queries live SQLite backend and maps fields cleanly to the UI."""
@@ -117,60 +110,12 @@ def generate_pdf_report(filename, merchant, date, score, label, lf, sf, ca, ti):
         print(f"⚠️ ReportLab file system lock bypassed: {str(pdf_err)}")
     return pdf_path
 
-# --- FAST GRAPHICS VECTOR PLOT ENGINE (ANTI-TAB FREEZE) ---
-def generate_analytics_plots():
-    global cached_fig1, cached_fig2
-    df = get_all_records()
-    if df.empty:
-        fig1, ax1 = plt.subplots(figsize=(6, 4))
-        ax1.text(0.5, 0.5, "Database Registry Offline", ha='center', va='center')
-        return fig1, fig1
-
-    scores_series = df['fraud_score'].astype(str).str.replace('%', '', regex=False)
-    scores_series = pd.to_numeric(scores_series, errors='coerce').fillna(0.0)
-    
-    fig1, ax1 = plt.subplots(figsize=(6, 4))
-    ax1.hist(scores_series, bins=15, color='#3182bd', edgecolor='#1c5076', alpha=0.85, rwidth=0.9)
-    ax1.set_title("Distribution of Overall System Compliance Scores", fontsize=10, fontweight='bold')
-    ax1.set_xlabel("Composite Score (%)", fontsize=9)
-    ax1.set_ylabel("Receipt Count", fontsize=9)
-    ax1.grid(axis='y', linestyle='--', alpha=0.5)
-    ax1.axvline(60.0, color='#e6550d', linestyle=':', label='Review (60%)')
-    ax1.axvline(83.0, color='#31a354', linestyle=':', label='Approval (83%)')
-    ax1.legend(loc='upper left', fontsize=8)
-    fig1.tight_layout()
-
-    fig2, ax2 = plt.subplots(figsize=(6, 4))
-    vector_cols = ['score_look_feel', 'score_structure_format', 'score_content_accuracy', 'score_text_integrity']
-    vector_labels = ['1. Look & Feel (ML)', '2. Structure & Format (ML)', '3. Content Accuracy (Rules)', '4. Text Integrity (OCR)']
-    
-    averages = [df[col].fillna(0.0).astype(float).mean() for col in vector_cols]
-    
-    colors_list = ['#74c4fe', '#41b6c4', '#238443', '#fec44f']
-    bars = ax2.barh(vector_labels, averages, color=colors_list, edgecolor='#555555', height=0.45)
-    ax2.set_title("Global Feature Matrix Profiles (Averages)", fontsize=10, fontweight='bold')
-    ax2.set_xlabel("Average Score Component (%)", fontsize=9)
-    ax2.set_xlim(0, 105)
-    ax2.grid(axis='x', linestyle='--', alpha=0.5)
-    for bar in bars:
-        width = bar.get_width()
-        ax2.text(width + 1.5, bar.get_y() + bar.get_height()/2, f'{width:.1f}%', ha='left', va='center', fontsize=8, fontweight='bold')
-    fig2.tight_layout()
-    
-    cached_fig1, cached_fig2 = fig1, fig2
-    return fig1, fig2
-
-def get_cached_plots():
-    global cached_fig1, cached_fig2
-    if cached_fig1 is None or cached_fig2 is None:
-        return generate_analytics_plots()
-    return cached_fig1, cached_fig2
-
 # --- INFERENCE WORKFLOW CONTROLLER & WORKSPACE SWAPPER ---
 def execute_live_inference(image_path):
     if image_path is None:
-        return gr.update(), gr.update(), "⚠️ No target asset frame submitted.", "", "", "", 0, 0, 0, 0, None
+        return gr.update(), gr.update(), "<div style='background-color:#fff5f5; color:#c53030; padding:20px; text-align:center; border-radius:8px; border:2px solid #c53030;'><strong>⚠️ No target asset frame submitted.</strong></div>", "Unknown", "Unknown Date", 0, 0, 0, 0, None
     
+    # Track and verify exact user submission filename
     target_filename = os.path.basename(image_path)
     print(f"\n🔍 [GRADIO INFERENCE] Intercepting upload: {target_filename}...")
     
@@ -178,7 +123,7 @@ def execute_live_inference(image_path):
     img_gray = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img_gray is None:
         print(f"❌ Failed to read image matrix for {target_filename}")
-        return gr.update(), gr.update(), "❌ Error reading image matrix.", "", "", "", 0, 0, 0, 0, None
+        return gr.update(), gr.update(), "<div style='background-color:#fff5f5; color:#c53030; padding:20px; text-align:center; border-radius:8px; border:2px solid #c53030;'><strong>❌ Error reading image matrix.</strong></div>", "Unknown", "Unknown Date", 0, 0, 0, 0, None
 
     # 2. Extract keypoints dynamically via ORB
     orb = cv2.ORB_create(nfeatures=1500)
@@ -192,8 +137,16 @@ def execute_live_inference(image_path):
     # 3. Extract Deep Learning OCR Signatures and Text Blocks via Core Module
     print("⚡ Extracting live runtime OCR signatures...")
     features = parsing.extract_structural_and_content_features(image_path)
+    
+    # INTERCEPT GATEWAY 1: Unreadable Files
     if features is None or features.get('unreadable_gate_flag', False):
-        return gr.update(visible=False), gr.update(visible=True), "REJECTED (IMAGE UNREADABLE)", "0%", "Unknown", "Unknown Date", 0, 0, 0, 0, None
+        unreadable_html = """
+        <div style="background-color: #fff5f5; border: 2px solid #c53030; border-radius: 8px; padding: 24px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h1 style="color: #c53030; font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px;">REJECTED (IMAGE UNREADABLE)</h1>
+            <p style="color: #9b2c2c; font-size: 16px; font-weight: bold; margin: 0;">COMPLIANCE SCORE: 0%</p>
+        </div>
+        """
+        return gr.update(visible=False), gr.update(visible=True), unreadable_html, "Unknown", "Unknown Date", 0, 0, 0, 0, None
 
     current_text_signature = features.get('full_raw_text', '')
 
@@ -219,7 +172,7 @@ def execute_live_inference(image_path):
                         good_matches = [m for m in matches if m.distance < 40]
                         if len(good_matches) > highest_match_count:
                             highest_match_count = len(good_matches)
-                        if len(good_matches) > 50:
+                        if len(good_matches) > 120:
                             is_physical_duplicate = True
 
                 # B. Digital Content Hijack Validation (Levenshtein Distance)
@@ -236,7 +189,7 @@ def execute_live_inference(image_path):
             print(f"❌ Database match loop failed: {str(e)}")
             if 'conn' in locals(): conn.close()
 
-    # 5. Evaluate Multi-Modal Security Routing Matrix Rules
+    # 5. Evaluate Multi-Modal Security Routing Matrix Rules (Fraud Verdict Banners)
     if is_physical_duplicate or is_textual_duplicate:
         if is_physical_duplicate and not is_textual_duplicate:
             label = "🚨 PHYSICAL TEMPLATE FRAUD"
@@ -251,8 +204,15 @@ def execute_live_inference(image_path):
         merchant = features.get('extracted_store', 'Unknown Store')
         date = features.get('date', 'Unknown Date')
         lf, sf, ca, ti = 0.0, 0.0, 0.0, float(features.get('avg_ocr_confidence', 80.0))
+        
+        fraud_html = f"""
+        <div style="background-color: #fff5f5; border: 2px solid #c53030; border-radius: 8px; padding: 24px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <h1 style="color: #c53030; font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px;">{label}</h1>
+            <p style="color: #9b2c2c; font-size: 16px; font-weight: bold; margin: 0;">SECURITY BLOCKER: {score}</p>
+        </div>
+        """
         pdf_path = generate_pdf_report(target_filename, merchant, date, score, label, lf, sf, ca, ti)
-        return gr.update(visible=False), gr.update(visible=True), label, score, merchant, date, lf, sf, ca, ti, pdf_path
+        return gr.update(visible=False), gr.update(visible=True), fraud_html, merchant, date, lf, sf, ca, ti, pdf_path
 
     # --- REGULAR PRODUCTION CLASSIFICATION PATH IF SAFE ---
     merchant = features.get('extracted_store', 'Unknown Store')
@@ -261,7 +221,6 @@ def execute_live_inference(image_path):
     ti = float(features.get('avg_ocr_confidence', 80.0))
     
     try:
-        # 🎯 MOVED INSIDE SRC: Absolute mapping down to your fyp/src/models path
         models_dir = os.path.join(SCRIPT_DIR, "models")
         lf_scaler = joblib.load(os.path.join(models_dir, "look_feel_scaler.pkl"))
         lf_forest = joblib.load(os.path.join(models_dir, "look_feel_forest.pkl"))
@@ -283,31 +242,38 @@ def execute_live_inference(image_path):
 
     total_composite = round((lf + sf + ca + ti) / 4, 1)
     score = f"{total_composite}%"
-    if total_composite > 80:
+    
+    # 🎨 DYNAMIC ROUTING & TAILWIND STYLING PASS
+    if total_composite >= 83.0:
         label = "APPROVED FOR REIMBURSEMENT"
-    elif total_composite > 60:
+        bg_color, border_color, text_color, score_color = "#f0fdf4", "#16a34a", "#16a34a", "#15803d"
+    elif total_composite >= 50.0:
         label = "SELECTED FOR MANUAL REVIEW"
+        bg_color, border_color, text_color, score_color = "#fffbeb", "#d97706", "#d97706", "#b45309"
     else:
-        label = "REJECTED (SUSPECT CORRUPT TEXT MATRIX)"
+        label = "REJECTED (SUSPECT PROFILE OUTLIER)"
+        bg_color, border_color, text_color, score_color = "#fff5f5", "#dc2626", "#dc2626", "#991b1b"
         
-    # 💾 --- SAVE CLEANLY TO SEPARATE DATA ARCHIVE SLOTS ---
+    dynamic_html_banner = f"""
+    <div style="background-color: {bg_color}; border: 2px solid {border_color}; border-radius: 8px; padding: 24px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+        <h1 style="color: {text_color}; font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px;">{label}</h1>
+        <p style="color: {score_color}; font-size: 18px; font-weight: bold; margin: 0;">INTEGRITY VERIFICATION SCORE: {score}</p>
+    </div>
+    """
+        
+    # 💾 --- SAVE WITH ORIGINAL SANITIZED FILENAME ---
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT COUNT(*), MAX(id) FROM receipts")
-            row_count, max_id = cursor.fetchone()
-            next_id = 1 if row_count == 0 else (max_id + 1)
-            assigned_system_name = f"r_{next_id:02d}.jpeg"
-            
-            # Serialize descriptors to base64 text for database ledger safety
             current_serialized_str = serialize_descriptors(des) if des is not None else ""
 
             output_storage_folder = os.path.join(os.path.dirname(os.path.dirname(DB_PATH)), "data", "processed_data", "combined_train")
             os.makedirs(output_storage_folder, exist_ok=True)
-            cv2.imwrite(os.path.join(output_storage_folder, assigned_system_name), img_gray)
+            
+            # Save using the exact, non-incremental target file system descriptor
+            cv2.imwrite(os.path.join(output_storage_folder, target_filename), img_gray)
 
-            # 📊 FIXED STATEMENT: Explicit insertion query tracking all 20 columns cleanly to prevent positional layout errors!
             cursor.execute("""
                 INSERT INTO receipts (
                     filename, merchant, date, total_amount, receipt_length, num_lines, 
@@ -317,7 +283,7 @@ def execute_live_inference(image_path):
                     score_look_feel, score_structure_format, score_content_accuracy, score_text_integrity
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                assigned_system_name, merchant, date, float(features.get('extracted_total', 0.0)),
+                target_filename, merchant, date, float(features.get('extracted_total', 0.0)),
                 int(features.get('word_count', 0)), int(features.get('line_count', 0)),
                 float(features.get('layout_density_ratio', 0.0)), float(features.get('vertical_alignment_variance', 0.0)),
                 float(features.get('avg_ocr_confidence', 0.0)), float(features.get('aspect_ratio', 0.0)),
@@ -327,22 +293,16 @@ def execute_live_inference(image_path):
             ))
             conn.commit()
             conn.close()
-            print(f"💾 SQLite Transaction Complete: {assigned_system_name} permanently saved.")
-            target_filename = assigned_system_name
+            print(f"💾 SQLite Transaction Complete: {target_filename} permanently saved.")
         except Exception as db_write_error:
             print(f"❌ Database saving failed: {str(db_write_error)}")
             if 'conn' in locals(): conn.close()
 
     pdf_path = generate_pdf_report(target_filename, merchant, date, score, label, lf, sf, ca, ti)
-    return gr.update(visible=False), gr.update(visible=True), label, score, merchant, date, lf, sf, ca, ti, pdf_path
+    return gr.update(visible=False), gr.update(visible=True), dynamic_html_banner, merchant, date, lf, sf, ca, ti, pdf_path
 
 def reset_view():
     return gr.update(visible=True), gr.update(visible=False), None
-
-def sync_all_components():
-    df = get_all_records()
-    p1, p2 = generate_analytics_plots()
-    return df, p1, p2
 
 # --- WEB UI INTERFACE CONFIGURATION ---
 custom_theme = gr.themes.Soft(primary_hue="blue", secondary_hue="slate")
@@ -360,12 +320,11 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
                 
             with gr.Column(visible=False) as report_view:
                 back_btn = gr.Button("⬅️ Upload Another Receipt", variant="secondary", size="sm")
-                gr.Markdown("### 📄 Official Compliance Audit Report")
                 
-                with gr.Row():
-                    verdict_txt = gr.Textbox(label="System Compliance Verdict", interactive=False)
-                    score_txt = gr.Textbox(label="Overall Integrity Score", interactive=False)
-                    
+                # Dynamic high-impact color-coded HTML banner
+                verdict_banner = gr.HTML()
+                gr.HTML("<br/>")
+                
                 with gr.Row():
                     with gr.Column():
                         gr.Markdown("🌟 **Extracted Data Anchors**")
@@ -380,13 +339,13 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
                     lf_bar = gr.Slider(label="1. Look & Feel (Folds/Wrinkles Check)", minimum=0, maximum=100, interactive=False)
                     sf_bar = gr.Slider(label="2. Structure & Format (Layout Column Alignment)", minimum=0, maximum=100, interactive=False)
                     ca_bar = gr.Slider(label="3. Content Accuracy (Data & Math Completeness)", minimum=0, maximum=100, interactive=False)
-                    ti_bar = gr.Slider(label="4. Text Integrity (OCR Readability Quality)", minimum=0, maximum=100, interactive=False)
+                    ti_bar = gr.Slider(label="4. Text Integrity (OCR Print Readability Quality)", minimum=0, maximum=100, interactive=False)
 
-            # --- THE PERMANENT GRADIO RECONCILIATION FIX ---
+            # Execution Pipeline Mapping Block
             run_event = run_btn.click(
                 fn=execute_live_inference, 
                 inputs=input_file, 
-                outputs=[upload_view, report_view, verdict_txt, score_txt, merchant_txt, date_txt, lf_bar, sf_bar, ca_bar, ti_bar, pdf_download]
+                outputs=[upload_view, report_view, verdict_banner, merchant_txt, date_txt, lf_bar, sf_bar, ca_bar, ti_bar, pdf_download]
             )
             
             run_event.then(
@@ -396,19 +355,10 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
             )
             back_btn.click(fn=reset_view, inputs=None, outputs=[upload_view, report_view, input_file])
 
-        # --- TAB 2: ANALYTICS DASHBOARD ---
-        with gr.TabItem("📊 System Analytics Dashboard"):
-            gr.Markdown("### Production System Data Profiles")
-            with gr.Row():
-                plot_dist = gr.Plot(label="Score Ingestion Spreads")
-                plot_bars = gr.Plot(label="Multi-Criteria Vector Profile Averages")
-            refresh_plots_btn = gr.Button("🔄 Re-calculate Graphics Vectors", variant="secondary")
-            refresh_plots_btn.click(fn=generate_analytics_plots, inputs=None, outputs=[plot_dist, plot_bars])
-
-        # --- TAB 3: LEDGER ---
+        # --- TAB 2: LEDGER ---
         with gr.TabItem("📈 Global Data Warehouse Ledger"):
             gr.Markdown("### Multi-Criteria Audit Trail Ledger View")
-            master_sync_btn = gr.Button("🔄 Synchronize System Data & Charts", variant="primary")
+            master_sync_btn = gr.Button("🔄 Synchronize Ledger Registry", variant="primary")
             
             headers_list = ["Filename", "Merchant", "Date", "Overall Score", "Verdict", "Look & Feel", "Structure & Format", "Content Accuracy", "Text Integrity"]
             
@@ -417,9 +367,7 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
                 initial_data = pd.DataFrame(columns=['filename', 'merchant', 'date', 'fraud_score', 'fraud_label', 'score_look_feel', 'score_structure_format', 'score_content_accuracy', 'score_text_integrity'])
                 
             ledger_grid = gr.Dataframe(value=initial_data, headers=headers_list, interactive=False)
-            master_sync_btn.click(fn=sync_all_components, inputs=None, outputs=[ledger_grid, plot_dist, plot_bars])
-
-    demo.load(fn=get_cached_plots, inputs=None, outputs=[plot_dist, plot_bars])
+            master_sync_btn.click(fn=get_all_records, inputs=None, outputs=ledger_grid)
 
 if __name__ == "__main__":
     demo.launch(server_name="127.0.0.1", server_port=7860, theme=custom_theme, share=False)

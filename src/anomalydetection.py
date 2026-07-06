@@ -163,7 +163,7 @@ def run_evaluation_suite():
                         verdict_label = "REJECTED (CORRUPT TEXT)"
                     elif s_ca == 0.0:
                         verdict_label = "REJECTED (DUPLICATE/NON-RECEIPT)"
-                    elif composite_score >= 60:
+                    elif composite_score >= 50:
                         verdict_label = "SELECTED FOR MANUAL REVIEW"
                     else:
                         verdict_label = "REJECTED (SUSPECT IMAGE OUTLIER)"
@@ -184,7 +184,7 @@ def run_evaluation_suite():
                     verdict_label = "REJECTED (DUPLICATE)"
                 elif composite_score >= 83.0: 
                     verdict_label = "APPROVED FOR REIMBURSEMENT"
-                elif 60.0 <= composite_score < 83.0:
+                elif 50.0 <= composite_score < 83.0:
                     verdict_label = "SELECTED FOR MANUAL REVIEW"
                 else:
                     verdict_label = "REJECTED (SUSPECT IMAGE OUTLIER)"
