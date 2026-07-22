@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import gradio as gr
 import joblib
+import base64
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -13,11 +14,25 @@ from reportlab.lib import colors
 # Architectural modules for dynamic on-the-fly extraction
 import parsing
 
-# Import your serialization/deserialization helpers from dupe_detect.py
-from dupe_detect import deserialize_descriptors, serialize_descriptors
+# Import serialization/deserialization helpers
+def serialize_descriptors(descriptors):
+    """Converts raw OpenCV ORB matrices to a base64 text string for SQLite."""
+    if descriptors is None:
+        return ""
+    binary_data = descriptors.tobytes()
+    text_string = base64.b64encode(binary_data).decode('utf-8')
+    return text_string
+
+def deserialize_descriptors(text_string):
+    """Rebuilds the absolute binary matrix OpenCV needs from an SQLite string."""
+    if not text_string:
+        return None
+    binary_data = base64.b64decode(text_string.encode('utf-8'))
+    descriptors = np.frombuffer(binary_data, dtype=np.uint8).reshape(-1, 32)
+    return descriptors
 
 # Absolute target path pointing to your populated database file
-DB_PATH = r"c:\Users\ASUS\Downloads\fyp\src\receipts.db"
+DB_PATH = r"c:\Users\ASUS\Downloads\fyp\src\demotest.db"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_all_records():
@@ -26,7 +41,7 @@ def get_all_records():
         return pd.DataFrame()
     conn = sqlite3.connect(DB_PATH)
     try:
-        query = "SELECT * FROM receipts ORDER BY filename ASC"
+        query = "SELECT * FROM demotest ORDER BY filename ASC"
         df = pd.read_sql_query(query, conn)
         
         if df.empty:
@@ -107,7 +122,7 @@ def generate_pdf_report(filename, merchant, date, score, label, lf, sf, ca, ti):
     try:
         doc.build(story)
     except Exception as pdf_err:
-        print(f"⚠️ ReportLab file system lock bypassed: {str(pdf_err)}")
+        print(f"ReportLab file system lock bypassed: {str(pdf_err)}")
     return pdf_path
 
 # --- INFERENCE WORKFLOW CONTROLLER & WORKSPACE SWAPPER ---
@@ -117,12 +132,12 @@ def execute_live_inference(image_path):
     
     # Track and verify exact user submission filename
     target_filename = os.path.basename(image_path)
-    print(f"\n🔍 [GRADIO INFERENCE] Intercepting upload: {target_filename}...")
+    print(f"\n[GRADIO INFERENCE] Intercepting upload: {target_filename}...")
     
     # 1. Load image safely
     img_gray = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img_gray is None:
-        print(f"❌ Failed to read image matrix for {target_filename}")
+        print(f"Failed to read image matrix for {target_filename}")
         return gr.update(), gr.update(), "<div style='background-color:#fff5f5; color:#c53030; padding:20px; text-align:center; border-radius:8px; border:2px solid #c53030;'><strong>❌ Error reading image matrix.</strong></div>", "Unknown", "Unknown Date", 0, 0, 0, 0, None
 
     # 2. Extract keypoints dynamically via ORB
@@ -135,7 +150,7 @@ def execute_live_inference(image_path):
     highest_text_score = 0.0
 
     # 3. Extract Deep Learning OCR Signatures and Text Blocks via Core Module
-    print("⚡ Extracting live runtime OCR signatures...")
+    print("Extracting live runtime OCR signatures...")
     features = parsing.extract_structural_and_content_features(image_path)
     
     # INTERCEPT GATEWAY 1: Unreadable Files
@@ -152,18 +167,15 @@ def execute_live_inference(image_path):
 
     # 4. Securely cross-reference history across distinct standalone columns
     if os.path.exists(DB_PATH):
-        print("🔗 Scanning SQLite history for structural and content twins...")
+        print("Scanning SQLite history for structural and content twins...")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT filename, feature_descriptors, full_raw_text FROM receipts")
+            cursor.execute("SELECT filename, feature_descriptors, full_raw_text FROM demotest")
             rows = cursor.fetchall()
             
             bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
             for row_filename, row_descriptors_str, row_raw_text in rows:
-                if row_filename.lower() == target_filename.lower():
-                    continue
-                    
                 # A. Physical Structural Twins Validation (ORB Base64)
                 if row_descriptors_str and des is not None:
                     past_des = deserialize_descriptors(row_descriptors_str)
@@ -184,21 +196,24 @@ def execute_live_inference(image_path):
                         is_textual_duplicate = True
                         
             conn.close()
-            print(f"✅ History sweep completed. Max ORB: {highest_match_count} Pts | Max Text Sim: {highest_text_score:.1f}%")
+            print(f"History sweep completed. Max ORB: {highest_match_count} Pts | Max Text Sim: {highest_text_score:.1f}%")
         except Exception as e:
-            print(f"❌ Database match loop failed: {str(e)}")
+            print(f"Database match loop failed: {str(e)}")
             if 'conn' in locals(): conn.close()
 
     # 5. Evaluate Multi-Modal Security Routing Matrix Rules (Fraud Verdict Banners)
     if is_physical_duplicate or is_textual_duplicate:
         if is_physical_duplicate and not is_textual_duplicate:
-            label = "🚨 PHYSICAL TEMPLATE FRAUD"
+            label = "REJECTED (PHYSICAL TEMPLATE FRAUD)"
+            display_label = "PHYSICAL TEMPLATE FRAUD"
             score = f"ORB Match Block ({highest_match_count} Pts)"
         elif is_textual_duplicate and is_physical_duplicate:
-            label = "🛑 STANDARD DUPLICATE"
+            label = "REJECTED (DUPLICATE CLAIM BLOCK)"
+            display_label = "STANDARD DUPLICATE"
             score = f"Exact Clone ({highest_text_score:.1f}% Text / {highest_match_count} Pts)"
         elif is_textual_duplicate and not is_physical_duplicate:
-            label = "⚠️ TEXT DATA REUSE CLASH"
+            label = "REJECTED (TEXT DATA REUSE CLASH)"
+            display_label = "TEXT DATA REUSE CLASH"
             score = f"Text Hijack Overlap ({highest_text_score:.1f}%)"
             
         merchant = features.get('extracted_store', 'Unknown Store')
@@ -207,11 +222,46 @@ def execute_live_inference(image_path):
         
         fraud_html = f"""
         <div style="background-color: #fff5f5; border: 2px solid #c53030; border-radius: 8px; padding: 24px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-            <h1 style="color: #c53030; font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px;">{label}</h1>
+            <h1 style="color: #c53030; font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px;">{display_label}</h1>
             <p style="color: #9b2c2c; font-size: 16px; font-weight: bold; margin: 0;">SECURITY BLOCKER: {score}</p>
         </div>
         """
         pdf_path = generate_pdf_report(target_filename, merchant, date, score, label, lf, sf, ca, ti)
+        
+        # SAVE DUPLICATE RECORD TO DATABASE
+        if os.path.exists(DB_PATH):
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            try:
+                current_serialized_str = serialize_descriptors(des) if des is not None else ""
+                output_storage_folder = os.path.join(os.path.dirname(os.path.dirname(DB_PATH)), "data", "processed_data", "combined_train")
+                os.makedirs(output_storage_folder, exist_ok=True)
+                cv2.imwrite(os.path.join(output_storage_folder, target_filename), img_gray)
+
+                cursor.execute("""
+                    INSERT INTO demotest (
+                        filename, merchant, date, total_amount, receipt_length, num_lines, 
+                        layout_density_ratio, vertical_alignment_variance, avg_ocr_confidence, 
+                        aspect_ratio, math_valid_flag, character_spacing_var, 
+                        full_raw_text, feature_descriptors, fraud_label, fraud_score,
+                        score_look_feel, score_structure_format, score_content_accuracy, score_text_integrity
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    target_filename, merchant, date, float(features.get('extracted_total', 0.0)),
+                    int(features.get('word_count', 0)), int(features.get('line_count', 0)),
+                    float(features.get('layout_density_ratio', 0.0)), float(features.get('vertical_alignment_variance', 0.0)),
+                    float(features.get('avg_ocr_confidence', 0.0)), float(features.get('aspect_ratio', 0.0)),
+                    int(features.get('math_valid', 1)), float(features.get('char_spacing_variance', 0.0)),
+                    current_text_signature, current_serialized_str, label, "0.0%",
+                    float(lf), float(sf), float(ca), float(ti)
+                ))
+                conn.commit()
+                conn.close()
+                print(f"SQLite Duplicate Transaction Complete: {target_filename} permanently saved.")
+            except Exception as db_write_error:
+                print(f"Database duplicate saving failed: {str(db_write_error)}")
+                if 'conn' in locals(): conn.close()
+                
         return gr.update(visible=False), gr.update(visible=True), fraud_html, merchant, date, lf, sf, ca, ti, pdf_path
 
     # --- REGULAR PRODUCTION CLASSIFICATION PATH IF SAFE ---
@@ -232,26 +282,30 @@ def execute_live_inference(image_path):
         lf_anomaly_score = lf_forest.score_samples(scaled_lf)[0]
         lf = round(float(np.clip((lf_anomaly_score + 0.8) / 0.5 * 100, 10, 98)), 1)
         
-        sf_vector = np.array([[features['vertical_alignment_variance'], features['avg_ocr_confidence'], features['char_spacing_variance']]])
+        total_chars = len(features.get('full_raw_text', ''))
+        safe_lines = float(features['line_count']) if features['line_count'] > 0 else 1.0
+        chars_per_line = total_chars / safe_lines
+        
+        sf_vector = np.array([[float(features['line_count']), float(features['vertical_alignment_variance']), chars_per_line]])
         scaled_sf = sf_scaler.transform(sf_vector)
         sf_anomaly_score = sf_forest.score_samples(scaled_sf)[0]
         sf = round(float(np.clip((sf_anomaly_score + 0.8) / 0.5 * 100, 20, 95)), 1)
     except Exception as model_load_err:
-        print(f"⚠️ Models folder link fallback, using calibrated defaults: {str(model_load_err)}")
+        print(f"Models folder link fallback, using calibrated defaults: {str(model_load_err)}")
         lf, sf = 85.0, 88.0
 
     total_composite = round((lf + sf + ca + ti) / 4, 1)
     score = f"{total_composite}%"
     
-    # 🎨 DYNAMIC ROUTING & TAILWIND STYLING PASS
-    if total_composite >= 83.0:
+    # DYNAMIC ROUTING
+    if total_composite >= 75.0:
         label = "APPROVED FOR REIMBURSEMENT"
         bg_color, border_color, text_color, score_color = "#f0fdf4", "#16a34a", "#16a34a", "#15803d"
     elif total_composite >= 50.0:
         label = "SELECTED FOR MANUAL REVIEW"
         bg_color, border_color, text_color, score_color = "#fffbeb", "#d97706", "#d97706", "#b45309"
     else:
-        label = "REJECTED (SUSPECT PROFILE OUTLIER)"
+        label = "REJECTED (SUSPECT IMAGE OUTLIER)"
         bg_color, border_color, text_color, score_color = "#fff5f5", "#dc2626", "#dc2626", "#991b1b"
         
     dynamic_html_banner = f"""
@@ -275,7 +329,7 @@ def execute_live_inference(image_path):
             cv2.imwrite(os.path.join(output_storage_folder, target_filename), img_gray)
 
             cursor.execute("""
-                INSERT INTO receipts (
+                INSERT INTO demotest (
                     filename, merchant, date, total_amount, receipt_length, num_lines, 
                     layout_density_ratio, vertical_alignment_variance, avg_ocr_confidence, 
                     aspect_ratio, math_valid_flag, character_spacing_var, 
@@ -293,9 +347,9 @@ def execute_live_inference(image_path):
             ))
             conn.commit()
             conn.close()
-            print(f"💾 SQLite Transaction Complete: {target_filename} permanently saved.")
+            print(f"SQLite Transaction Complete: {target_filename} permanently saved.")
         except Exception as db_write_error:
-            print(f"❌ Database saving failed: {str(db_write_error)}")
+            print(f"Database saving failed: {str(db_write_error)}")
             if 'conn' in locals(): conn.close()
 
     pdf_path = generate_pdf_report(target_filename, merchant, date, score, label, lf, sf, ca, ti)
@@ -304,22 +358,22 @@ def execute_live_inference(image_path):
 def reset_view():
     return gr.update(visible=True), gr.update(visible=False), None
 
-# --- WEB UI INTERFACE CONFIGURATION ---
+#WEB UI INTERFACE CONFIGURATION
 custom_theme = gr.themes.Soft(primary_hue="blue", secondary_hue="slate")
 
 with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
     gr.Markdown("# 🧾 AI Expense Auditing & Compliance Gateway")
     
     with gr.Tabs():
-        # --- TAB 1: INGESTION ---
-        with gr.TabItem("📤 Real-Time Ingestion Portal"):
+        # TAB 1: INGESTION 
+        with gr.TabItem("Real-Time Ingestion Portal"):
             with gr.Column(visible=True) as upload_view:
                 gr.Markdown("### Ingest Document Asset for Integrity Auditing")
                 input_file = gr.Image(type="filepath", label="Drop Receipt Image Here")
-                run_btn = gr.Button("Execute Analysis Sweep ⚙️", variant="primary")
+                run_btn = gr.Button("Execute Image Analysis", variant="primary")
                 
             with gr.Column(visible=False) as report_view:
-                back_btn = gr.Button("⬅️ Upload Another Receipt", variant="secondary", size="sm")
+                back_btn = gr.Button("Upload Another Receipt", variant="secondary", size="sm")
                 
                 # Dynamic high-impact color-coded HTML banner
                 verdict_banner = gr.HTML()
@@ -327,15 +381,15 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
                 
                 with gr.Row():
                     with gr.Column():
-                        gr.Markdown("🌟 **Extracted Data Anchors**")
+                        gr.Markdown("Extracted Data Anchors")
                         merchant_txt = gr.Textbox(label="Identified Merchant", interactive=False)
                         date_txt = gr.Textbox(label="Transaction Date", interactive=False)
                     with gr.Column():
-                        gr.Markdown("📄 **Compliance Documentation Export**")
+                        gr.Markdown("Audit Documentation Export")
                         pdf_download = gr.File(label="Download Official PDF Audit Sheet")
                         
                 with gr.Group():
-                    gr.Markdown("📊 **Core Evaluation Vector Score Components**")
+                    gr.Markdown("Core Evaluation Vector Scores")
                     lf_bar = gr.Slider(label="1. Look & Feel (Folds/Wrinkles Check)", minimum=0, maximum=100, interactive=False)
                     sf_bar = gr.Slider(label="2. Structure & Format (Layout Column Alignment)", minimum=0, maximum=100, interactive=False)
                     ca_bar = gr.Slider(label="3. Content Accuracy (Data & Math Completeness)", minimum=0, maximum=100, interactive=False)
@@ -356,9 +410,9 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
             back_btn.click(fn=reset_view, inputs=None, outputs=[upload_view, report_view, input_file])
 
         # --- TAB 2: LEDGER ---
-        with gr.TabItem("📈 Global Data Warehouse Ledger"):
-            gr.Markdown("### Multi-Criteria Audit Trail Ledger View")
-            master_sync_btn = gr.Button("🔄 Synchronize Ledger Registry", variant="primary")
+        with gr.TabItem("Database Ledger"):
+            gr.Markdown("Multi-Criteria Audit Trail Ledger View")
+            master_sync_btn = gr.Button("Synchronize Ledger Registry", variant="primary")
             
             headers_list = ["Filename", "Merchant", "Date", "Overall Score", "Verdict", "Look & Feel", "Structure & Format", "Content Accuracy", "Text Integrity"]
             

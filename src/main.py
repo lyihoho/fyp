@@ -1,6 +1,3 @@
-# main.py
-import os
-import sys
 import time
 from database import init_db, SessionLocal, Receipt
 import parsing
@@ -47,10 +44,9 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
     print("=" * 20)
 
 if __name__ == "__main__":
-    RAW_RECEIPTS_FOLDER = "data/test_2"
+    RAW_RECEIPTS_FOLDER = "data/demotest"
     BACKUP_DATA_CSV = "data/anomaly_detection_input.csv"
     
-    # 🛠️ YOUR MASTER SWITCH:
     # Set to False train system
     # Set to True for actual development to lock the models
-    execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=False)
+    execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=True)

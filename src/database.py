@@ -6,14 +6,14 @@ from sqlalchemy.orm import sessionmaker
 
 # Point absolute path to project directory cleanly
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'receipts.db')}"
+DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'demotest.db')}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 class Receipt(Base):
-    __tablename__ = "receipts"
+    __tablename__ = "demotest"
 
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, nullable=False)
