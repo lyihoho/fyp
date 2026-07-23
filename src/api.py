@@ -315,7 +315,7 @@ def execute_live_inference(image_path):
     </div>
     """
         
-    # 💾 --- SAVE WITH ORIGINAL SANITIZED FILENAME ---
+    # SAVE WITH ORIGINAL FILENAME ---
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -362,13 +362,13 @@ def reset_view():
 custom_theme = gr.themes.Soft(primary_hue="blue", secondary_hue="slate")
 
 with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
-    gr.Markdown("# 🧾 AI Expense Auditing & Compliance Gateway")
+    gr.Markdown("AI Expense Auditing & Compliance Gateway")
     
     with gr.Tabs():
         # TAB 1: INGESTION 
         with gr.TabItem("Real-Time Ingestion Portal"):
             with gr.Column(visible=True) as upload_view:
-                gr.Markdown("### Ingest Document Asset for Integrity Auditing")
+                gr.Markdown("Ingest Document Asset for Integrity Auditing")
                 input_file = gr.Image(type="filepath", label="Drop Receipt Image Here")
                 run_btn = gr.Button("Execute Image Analysis", variant="primary")
                 
@@ -409,7 +409,7 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
             )
             back_btn.click(fn=reset_view, inputs=None, outputs=[upload_view, report_view, input_file])
 
-        # --- TAB 2: LEDGER ---
+        # TAB 2: LEDGER
         with gr.TabItem("Database Ledger"):
             gr.Markdown("Multi-Criteria Audit Trail Ledger View")
             master_sync_btn = gr.Button("Synchronize Ledger Registry", variant="primary")
