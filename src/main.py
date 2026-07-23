@@ -28,8 +28,7 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
     # PRODUCTION MODE
     else:
         print("\nScanning new upload...")
-        # In gradio, images_directory would point to the uploaded file
-        # parsing.py checks for dupe and creates a raw row entry.
+        # parsing.py checks for dupe and creates a raw row entry
         parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
 
         print("\nTraining skipped. Using frozen .pkl files.")
@@ -47,6 +46,4 @@ if __name__ == "__main__":
     RAW_RECEIPTS_FOLDER = "data/demotest"
     BACKUP_DATA_CSV = "data/anomaly_detection_input.csv"
     
-    # Set to False train system
-    # Set to True for actual development to lock the models
     execute_pipeline(RAW_RECEIPTS_FOLDER, BACKUP_DATA_CSV, production_mode=True)

@@ -21,7 +21,7 @@ class Receipt(Base):
     date = Column(String, default="Unknown Date")
     total_amount = Column(Float, default=0.0)
     
-    # --- ISOLATION FOREST COLUMNS ---
+    # ISOLATION FOREST COLUMNS
     receipt_length = Column(Integer, default=0)
     num_lines = Column(Integer, default=0)
     layout_density_ratio = Column(Float, default=0.0)
@@ -31,11 +31,11 @@ class Receipt(Base):
     math_valid_flag = Column(Integer, default=1)
     character_spacing_var = Column(Float, default=0.0)
     
-    # --- EVALUATION ENGINE RESULTS ---
+    # EVALUATION ENGINE RESULTS
     fraud_score = Column(String, default="pending")
     fraud_label = Column(String, default="pending")
 
-    # --- DUPE CHECKING FIELDS ---
+    # DUPE CHECKING FIELDS
     full_raw_text = Column(Text, nullable=True)
     feature_descriptors = Column(Text, nullable=True)
 

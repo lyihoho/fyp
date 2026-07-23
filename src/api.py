@@ -16,7 +16,7 @@ import parsing
 
 # Import serialization/deserialization helpers
 def serialize_descriptors(descriptors):
-    """Converts raw OpenCV ORB matrices to a base64 text string for SQLite."""
+    # Converts raw OpenCV ORB matrices to a base64 text string for SQLite
     if descriptors is None:
         return ""
     binary_data = descriptors.tobytes()
@@ -24,7 +24,7 @@ def serialize_descriptors(descriptors):
     return text_string
 
 def deserialize_descriptors(text_string):
-    """Rebuilds the absolute binary matrix OpenCV needs from an SQLite string."""
+    # Rebuilds the absolute binary matrix OpenCV needs from an SQLite string
     if not text_string:
         return None
     binary_data = base64.b64decode(text_string.encode('utf-8'))
@@ -70,7 +70,7 @@ def get_all_records():
             conn.close()
         return pd.DataFrame()
 
-# --- ENTERPRISE PDF COMPLIANCE GENERATOR ---
+# PDF GENERATOR
 def generate_pdf_report(filename, merchant, date, score, label, lf, sf, ca, ti):
     pdf_filename = f"Audit_Report_{filename.split('.')[0]}.pdf"
     pdf_path = os.path.join(SCRIPT_DIR, pdf_filename)
@@ -125,7 +125,7 @@ def generate_pdf_report(filename, merchant, date, score, label, lf, sf, ca, ti):
         print(f"ReportLab file system lock bypassed: {str(pdf_err)}")
     return pdf_path
 
-# --- INFERENCE WORKFLOW CONTROLLER & WORKSPACE SWAPPER ---
+# INFERENCE CONTROLLER
 def execute_live_inference(image_path):
     if image_path is None:
         return gr.update(), gr.update(), "<div style='background-color:#fff5f5; color:#c53030; padding:20px; text-align:center; border-radius:8px; border:2px solid #c53030;'><strong>⚠️ No target asset frame submitted.</strong></div>", "Unknown", "Unknown Date", 0, 0, 0, 0, None
@@ -134,13 +134,13 @@ def execute_live_inference(image_path):
     target_filename = os.path.basename(image_path)
     print(f"\n[GRADIO INFERENCE] Intercepting upload: {target_filename}...")
     
-    # 1. Load image safely
+    # Load image
     img_gray = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img_gray is None:
         print(f"Failed to read image matrix for {target_filename}")
         return gr.update(), gr.update(), "<div style='background-color:#fff5f5; color:#c53030; padding:20px; text-align:center; border-radius:8px; border:2px solid #c53030;'><strong>❌ Error reading image matrix.</strong></div>", "Unknown", "Unknown Date", 0, 0, 0, 0, None
 
-    # 2. Extract keypoints dynamically via ORB
+    # Extract keypoints dynamically via ORB
     orb = cv2.ORB_create(nfeatures=1500)
     kp, des = orb.detectAndCompute(img_gray, None)
     
@@ -149,7 +149,7 @@ def execute_live_inference(image_path):
     highest_match_count = 0
     highest_text_score = 0.0
 
-    # 3. Extract Deep Learning OCR Signatures and Text Blocks via Core Module
+    # Extract Deep Learning OCR Signatures and Text Blocks 
     print("Extracting live runtime OCR signatures...")
     features = parsing.extract_structural_and_content_features(image_path)
     
@@ -165,7 +165,7 @@ def execute_live_inference(image_path):
 
     current_text_signature = features.get('full_raw_text', '')
 
-    # 4. Securely cross-reference history across distinct standalone columns
+    # Securely cross-reference history across distinct columns
     if os.path.exists(DB_PATH):
         print("Scanning SQLite history for structural and content twins...")
         conn = sqlite3.connect(DB_PATH)
@@ -176,7 +176,7 @@ def execute_live_inference(image_path):
             
             bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
             for row_filename, row_descriptors_str, row_raw_text in rows:
-                # A. Physical Structural Twins Validation (ORB Base64)
+                # physical structural twins validation
                 if row_descriptors_str and des is not None:
                     past_des = deserialize_descriptors(row_descriptors_str)
                     if past_des is not None and past_des.shape[0] > 0:
@@ -187,7 +187,7 @@ def execute_live_inference(image_path):
                         if len(good_matches) > 120:
                             is_physical_duplicate = True
 
-                # B. Digital Content Hijack Validation (Levenshtein Distance)
+                # digital content Validation
                 if row_raw_text and current_text_signature:
                     t_score = parsing.calculate_text_similarity(current_text_signature, row_raw_text)
                     if t_score > highest_text_score:
@@ -201,7 +201,7 @@ def execute_live_inference(image_path):
             print(f"Database match loop failed: {str(e)}")
             if 'conn' in locals(): conn.close()
 
-    # 5. Evaluate Multi-Modal Security Routing Matrix Rules (Fraud Verdict Banners)
+    # Evaluate multi-modal security rules
     if is_physical_duplicate or is_textual_duplicate:
         if is_physical_duplicate and not is_textual_duplicate:
             label = "REJECTED (PHYSICAL TEMPLATE FRAUD)"
@@ -257,14 +257,14 @@ def execute_live_inference(image_path):
                 ))
                 conn.commit()
                 conn.close()
-                print(f"SQLite Duplicate Transaction Complete: {target_filename} permanently saved.")
+                print(f"SQLite Duplicate Record Complete: {target_filename} permanently saved.")
             except Exception as db_write_error:
                 print(f"Database duplicate saving failed: {str(db_write_error)}")
                 if 'conn' in locals(): conn.close()
                 
         return gr.update(visible=False), gr.update(visible=True), fraud_html, merchant, date, lf, sf, ca, ti, pdf_path
 
-    # --- REGULAR PRODUCTION CLASSIFICATION PATH IF SAFE ---
+    # REGULAR IMAGE CLASSIFICATION PATH
     merchant = features.get('extracted_store', 'Unknown Store')
     date = features.get('date', 'Unknown Date')
     ca = 100.0 if features.get('math_valid', 1) == 1 else 30.0
@@ -315,7 +315,7 @@ def execute_live_inference(image_path):
     </div>
     """
         
-    # SAVE WITH ORIGINAL FILENAME ---
+    # SAVE WITH ORIGINAL FILENAME
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -325,7 +325,7 @@ def execute_live_inference(image_path):
             output_storage_folder = os.path.join(os.path.dirname(os.path.dirname(DB_PATH)), "data", "processed_data", "combined_train")
             os.makedirs(output_storage_folder, exist_ok=True)
             
-            # Save using the exact, non-incremental target file system descriptor
+            # Save using the exact target file system descriptor
             cv2.imwrite(os.path.join(output_storage_folder, target_filename), img_gray)
 
             cursor.execute("""
@@ -347,7 +347,7 @@ def execute_live_inference(image_path):
             ))
             conn.commit()
             conn.close()
-            print(f"SQLite Transaction Complete: {target_filename} permanently saved.")
+            print(f"SQLite Saving Complete: {target_filename} permanently saved.")
         except Exception as db_write_error:
             print(f"Database saving failed: {str(db_write_error)}")
             if 'conn' in locals(): conn.close()
@@ -358,7 +358,7 @@ def execute_live_inference(image_path):
 def reset_view():
     return gr.update(visible=True), gr.update(visible=False), None
 
-#WEB UI INTERFACE CONFIGURATION
+#WEB UI INTERFACE
 custom_theme = gr.themes.Soft(primary_hue="blue", secondary_hue="slate")
 
 with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
@@ -375,7 +375,7 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
             with gr.Column(visible=False) as report_view:
                 back_btn = gr.Button("Upload Another Receipt", variant="secondary", size="sm")
                 
-                # Dynamic high-impact color-coded HTML banner
+                # Dynamic color-coded HTML banner
                 verdict_banner = gr.HTML()
                 gr.HTML("<br/>")
                 
@@ -409,7 +409,7 @@ with gr.Blocks(title="AI Expense Auditing Gateway") as demo:
             )
             back_btn.click(fn=reset_view, inputs=None, outputs=[upload_view, report_view, input_file])
 
-        # TAB 2: LEDGER
+        # TAB 2:DB VIEW
         with gr.TabItem("Database Ledger"):
             gr.Markdown("Multi-Criteria Audit Trail Ledger View")
             master_sync_btn = gr.Button("Synchronize Ledger Registry", variant="primary")
