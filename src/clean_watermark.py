@@ -7,12 +7,8 @@ def strip_light_watermarks(image_path, output_path):
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None: return
     
-    # -------------------------------------------------------------------------
-    # 🎯 TARGETED BINARY THRESHOLD CONVERSION
-    # -------------------------------------------------------------------------
-    # Replacing the convertScaleAbs linear math with a definitive binary split.
-    # Any pixel lighter than 195 (the watermark lines) flatlines to pure white (255).
-    # Only pristine, dark machine-printed text survives the cutoff.
+    # Any pixel lighter than 195 (the watermark lines) flatlines to pure white
+    # Only dark machine-printed text remains
     threshold_value = 150
     _, cleaned = cv2.threshold(img, threshold_value, 255, cv2.THRESH_BINARY)
     
@@ -20,7 +16,7 @@ def strip_light_watermarks(image_path, output_path):
     cv2.imwrite(output_path, cleaned)
     print(f"✨ Cleaned watermark from: {os.path.basename(image_path)}")
 
-# Run it across your 10 synthetic downloads
+# Change path to target folder name
 SYNTHETIC_DIR = "data/raw_images/train3_synthetic_10"
 CLEANED_DIR = "data/raw_images/synthetic3_10_cleaned"
 

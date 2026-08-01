@@ -24,7 +24,6 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
         print("\nScoring and filtering rows...")
         anomalydetection.run_evaluation_suite()
 
-
     # PRODUCTION MODE
     else:
         print("\nScanning new upload...")
@@ -32,8 +31,6 @@ def execute_pipeline(images_directory, output_csv_backup, production_mode=False)
         parsing.run_real_use_feature_pipeline(images_directory, output_csv_backup)
 
         print("\nTraining skipped. Using frozen .pkl files.")
-    
-
         print("\nEvaluating fresh row entry against metrics...")
         anomalydetection.run_evaluation_suite()
 

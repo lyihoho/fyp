@@ -1,4 +1,3 @@
-# anomalydetection.py
 import os
 import joblib
 import numpy as np
@@ -58,7 +57,7 @@ class MultiCriteriaAnomalyEngine:
         scaled_sf = self.structure_scaler.transform(raw_sf)
         sf_ml_score = self.structure_model.decision_function(scaled_sf)[0]
 
-        # CHARACTER METRIC EXTREME SHIELD
+        # CHARACTER METRIC SHIELD
         if len(full_text) > 15000:
             return 0.0, 0.0, 0.0, 0.0
 
@@ -163,7 +162,7 @@ def run_evaluation_suite():
                     else:
                         verdict_label = "REJECTED (SUSPECT IMAGE OUTLIER)"
 
-            # --- ENGINE GATE 2: STANDARD EVALUATION ---
+            # GATE 2: EVALUATION
             else:
                 current_target = r.__dict__.copy()
                 current_target.pop('_sa_instance_state', None)
@@ -193,7 +192,7 @@ def run_evaluation_suite():
             r.fraud_label = verdict_label
 
 
-            # Progressive inline commits block silent background crash rollbacks
+            # Progressive inline commit
             try:
                 session.commit()
             except Exception as row_err:

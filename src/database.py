@@ -1,10 +1,9 @@
-# database.py
 import os
 from sqlalchemy import Column, Integer, String, Float, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Point absolute path to project directory cleanly
+# Point absolute path to project directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'demotest.db')}"
 

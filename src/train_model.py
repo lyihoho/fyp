@@ -1,10 +1,9 @@
-# train_model.py
 import os
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler  # CamScanner-style Math Normalizer
+from sklearn.preprocessing import StandardScaler 
 from database import SessionLocal, Receipt
 
 # Configuration for file outputs
@@ -12,12 +11,12 @@ MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 LF_MODEL_PATH = os.path.join(MODELS_DIR, "look_feel_forest.pkl")
 SF_MODEL_PATH = os.path.join(MODELS_DIR, "structure_forest.pkl")
 
-# New Blueprint Paths to freeze feature scale properties
+# New Paths to freeze feature scale properties
 LF_SCALER_PATH = os.path.join(MODELS_DIR, "look_feel_scaler.pkl")
 SF_SCALER_PATH = os.path.join(MODELS_DIR, "structure_scaler.pkl")
 
 def train_and_export_models():
-    print("🌲 [MODEL TRAINING] Connecting to receipts.db via SQLAlchemy...")
+    print("[MODEL TRAINING] Connecting to receipts.db via SQLAlchemy...")
     session = SessionLocal()
     
     try:
@@ -26,7 +25,7 @@ def train_and_export_models():
             print(f"Error: Found only {len(receipts)} records. You need more rows before training.")
             return
 
-        # Convert to DataFrame cleanly for matrix extraction slicing
+        # Convert to DataFrame for matrix extraction slicing
         data_pool = [r.__dict__.copy() for r in receipts]
         for d in data_pool: d.pop('_sa_instance_state', None)
         df = pd.DataFrame(data_pool)
@@ -37,7 +36,7 @@ def train_and_export_models():
         X_lf = df[["layout_density_ratio", "receipt_length", "num_lines", "aspect_ratio"]].values
         print(f"📊 Standardizing & Training Look & Feel Forest on {len(X_lf)} rows...")
         
-        # Instantiate and fit the mathematical normalization criteria matrix
+        # Create and fit the normalization criteria matrix
         scaler_lf = StandardScaler()
         X_lf_scaled = scaler_lf.fit_transform(X_lf)
         
@@ -49,22 +48,22 @@ def train_and_export_models():
         joblib.dump(scaler_lf, LF_SCALER_PATH)
 
         # TRAINING STRUCTURE AND FORMAT FOREST
-        print("📐 Engineering structural density features from existing raw text vectors...")
+        print("Calculating structural density features from existing raw text vectors...")
         
         # Safely extract text lengths dynamically from existing string storage columns
         df['total_chars'] = df['full_raw_text'].fillna('').str.len()
         
-        # Protect against division by zero errors for unreadable lines
+        # catch division by zero errors for unreadable lines
         df['safe_num_lines'] = df['num_lines'].apply(lambda x: float(x) if float(x) > 0 else 1.0)
         
         # Construct the new math dimension
         df['chars_per_line'] = df['total_chars'] / df['safe_num_lines']
 
-        # Feed the expanded 3D vector matrix [num_lines, vertical_alignment_variance, chars_per_line]
+        # Feed the expanded vector matrix
         X_sf = df[["num_lines", "vertical_alignment_variance", "chars_per_line"]].values
         print(f"Standardizing & Training Structure Forest on {len(X_sf)} rows with 4 features...")
         
-        # Instantiate and fit variance normalizer to protect against handheld distance skewing
+        # Create and fit variance normalizer to protect against handheld distance skewing
         scaler_sf = StandardScaler()
         X_sf_scaled = scaler_sf.fit_transform(X_sf)
         

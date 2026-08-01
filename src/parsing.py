@@ -45,7 +45,6 @@ def calculate_text_similarity(text1, text2):
     return (1.0 - (lev_dist / max_len)) * 100
 
 def serialize_descriptors(descriptors):
-    """Converts raw OpenCV ORB matrices to a base64 text string for SQLite."""
     if descriptors is None:
         return ""
     binary_data = descriptors.tobytes()
@@ -53,7 +52,6 @@ def serialize_descriptors(descriptors):
     return text_string
 
 def deserialize_descriptors(text_string):
-    """Rebuilds the absolute binary matrix OpenCV needs from an SQLite string."""
     if not text_string:
         return None
     binary_data = base64.b64decode(text_string.encode('utf-8'))
@@ -262,12 +260,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
         for filename in image_files:
             full_img_path = os.path.join(images_dir, filename)
             
-            # Skip this file if it already exists in the database
-            # already_exists = db_session.query(Receipt).filter(Receipt.filename == filename).first()
-            # if already_exists:
-            #    continue # 🚀 Instantly skips the image and jumps to the next file
-
-            # Protect pipeline from internal runtime crashes...
+            # Protect pipeline from internal runtime crashes
             try:
                 # EXTRACT GENERAL LOOK & FEEL VIA OCR
                 extracted_row = extract_structural_and_content_features(full_img_path)
@@ -338,7 +331,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
 
                     print(f"Parsing: {filename:<12} | Sim Track: [Text: {highest_text_score:.1f}% | ORB: {highest_orb_matches} Pts] -> Verdict: {final_label}")
                 
-                # --- STEP D: WRITE TO THEIR CLEAN STANDALONE COLUMNS (DYNAMIC MACHINE LEARNING SCORING) ---
+                # WRITE TO THEIR STANDALONE COLUMNS
                 try:
                     # Target the local src/models directory natively
                     models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
@@ -389,7 +382,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
                     fraud_label=final_label,
                     fraud_score=final_score,
 
-                    # Direct, isolated mapping to store actual metrics
+                    # Direct mapping to store actual metrics
                     score_look_feel=lf_score if not extracted_row['unreadable_gate_flag'] else 0.0,
                     score_structure_format=sf_score if not extracted_row['unreadable_gate_flag'] else 0.0,
                     score_content_accuracy=ca_score,

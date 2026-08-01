@@ -10,8 +10,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-
-# Architectural modules for dynamic on-the-fly extraction
 import parsing
 
 # Import serialization/deserialization helpers
@@ -31,12 +29,11 @@ def deserialize_descriptors(text_string):
     descriptors = np.frombuffer(binary_data, dtype=np.uint8).reshape(-1, 32)
     return descriptors
 
-# Absolute target path pointing to your populated database file
+# Absolute target path pointing to database file
 DB_PATH = r"c:\Users\ASUS\Downloads\fyp\src\demotest.db"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_all_records():
-    """Queries live SQLite backend and maps fields cleanly to the UI."""
     if not os.path.exists(DB_PATH):
         return pd.DataFrame()
     conn = sqlite3.connect(DB_PATH)
@@ -50,14 +47,14 @@ def get_all_records():
             
         df_display = pd.DataFrame()
         
-        # 1. Map textual metadata columns securely
+        # Map textual metadata columns
         df_display['filename'] = df['filename']
         df_display['merchant'] = df['merchant']
         df_display['date'] = df['date']
         df_display['fraud_score'] = df['fraud_score']
         df_display['fraud_label'] = df['fraud_label']
 
-        # 2. Map evaluation score vectors cleanly to the UI variables
+        # Map evaluation score vectors cleanly to the UI variables
         df_display['score_look_feel'] = df['score_look_feel'].astype(float)
         df_display['score_structure_format'] = df['score_structure_format'].astype(float)
         df_display['score_content_accuracy'] = df['score_content_accuracy'].astype(float)
@@ -165,7 +162,7 @@ def execute_live_inference(image_path):
 
     current_text_signature = features.get('full_raw_text', '')
 
-    # Securely cross-reference history across distinct columns
+    # cross-reference history across distinct columns
     if os.path.exists(DB_PATH):
         print("Scanning SQLite history for structural and content twins...")
         conn = sqlite3.connect(DB_PATH)
