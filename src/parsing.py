@@ -184,7 +184,7 @@ def extract_structural_and_content_features(image_path):
         if cleaned_prices:
             detected_total = max(cleaned_prices[-4:])
             
-            # Check for prepended digit tampering (e.g. adding 1 in front of total)
+            # Check for prepended digit tampering
             if detected_total > 0.0:
                 t_str = f"{detected_total:.2f}"
                 t_int_str, t_dec_str = t_str.split('.')
@@ -252,7 +252,7 @@ def run_real_use_feature_pipeline(images_dir, output_csv):
     db_session = SessionLocal()
 
     try:
-        print("\n" + "="*80 + "\n📥 [INGESTION PHASE] SCREENING DOCUMENT MATRIX AT THE GATE\n" + "="*80)
+        print("\n" + "="*80 + "\n[INGESTION PHASE] SCREENING DOCUMENT MATRIX AT THE GATE\n" + "="*80)
 
         orb = cv2.ORB_create(nfeatures=1500)
         bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
