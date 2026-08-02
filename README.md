@@ -4,7 +4,7 @@ An automated financial compliance routing pipeline developed as a BSc (Honours) 
 
 ---
 
-# Key Features
+## 🚀 Key Features
 
 * **Visual & Textual Duplicate Check (Gate 1)**: Runs parallel dual-engine verification. Visually compares receipt layout matrices using **OpenCV ORB** matching (Hamming distance) and textually using **Levenshtein Edit Distance** to block recaptured photo duplicates.
 * **Tampering & Math Auditor (Gate 2)**: Scans transaction totals and individual item lists. Utilizes place-value math rules to detect manual pen alterations (e.g., prepending or changing digits).
@@ -13,8 +13,9 @@ An automated financial compliance routing pipeline developed as a BSc (Honours) 
 
 ---
 
-# Repository Directory Layout
+## 📂 Repository Directory Layout
 
+```text
 fyp/
 ├── data/
 │   ├── test/                  # SROIE test receipt image dataset (383 files)
@@ -31,47 +32,59 @@ fyp/
 │   ├── demotest.db            # SQLite database containing UAT evaluation records
 │   └── receipts.db            # SQLite database containing training feature tables
 ├── .gitignore                 # Configured directory exclusions
-└── README                     # Project setup and execution manual
-
+└── README.md                  # Project setup and execution manual
+```
 
 ---
 
-# Setup & Installation
+## 🛠️ Setup & Installation
 
-# 1. Clone the repository
+### **1. Clone the repository**
+```bash
 git clone <your-repository-url>
 cd fyp
+```
 
-# 2. Activate the Virtual Environment
+### **2. Activate the Virtual Environment**
 Ensure you are using **Windows PowerShell**:
+```powershell
 .\venv\Scripts\Activate.ps1
+```
 
-# 3. Install Project Dependencies
+### **3. Install Project Dependencies**
 Install dependencies including OpenCV, PaddleOCR, and Scikit-Learn:
+```bash
 pip install -r requirements.txt
+```
 *(Note: If you do not have a `requirements.txt` file, install the main packages manually: `pip install opencv-python paddleocr scikit-learn pandas joblib pypdf reportlab openpyxl`)*
 
 ---
 
-# How to Run the System
+## 🏃 How to Run the System
 
-# Option A: Run the Live Gradio Web UI (api.py)
+### **Option A: Run the Live Gradio Web UI (api.py)**
 To start the interactive web application, run:
+```bash
 python src/api.py
+```
 1. Open the local address in your browser: `http://127.0.5.1:7860`.
 2. Upload a receipt from `data/demotest/` (e.g., `normal1.jpeg` or `tampered.jpeg`).
 3. View the color-coded verdict banner, download the audit PDF report, and click **"Synchronize Ledger Registry"** to see live SQL records synced to `demotest.db`.
 
-# Option B: Run the Command-Line Batch Demo (main.py)
+### **Option B: Run the Command-Line Batch Demo (main.py - Viva Demo)**
 To run the automated batch pipeline across all test assets in the terminal without opening a browser:
+```bash
 python src/main.py
+```
 This runs the entire verification suite sequentially across `data/demotest/` and outputs the logs, database writes, and verdicts directly to the terminal console.
 
-# Option C: Retrain the Machine Learning Models (train_model.py)
+### **Option C: Retrain the Machine Learning Models (train_model.py)**
 To retrain the Isolation Forest models on the dataset stored in `receipts.db` and output new `.pkl` files:
+```bash
 python src/train_model.py
+```
 
 ---
 
-# Attribution
+## ⚖️ License & Attribution
 Developed by **Lim Yi** (ID: 22078430) as a capstone project for the Department of Computing and Information Systems, Sunway University.
