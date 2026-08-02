@@ -1,0 +1,44 @@
+Lilian's Cake House
+Wilayah Persekutuan Kuala Lumpur 50480
+Phone:60178565205
+Company Name: Lilian's Homemade Cake
+Business Registration Number:TR0220251-X
+Table #
+TA
+Receipt Date:2025.12.20 14:38:14
+Receipt #:0002512201438143
+Table #:TA
+Cashierjessica chaw
+Register #1
+Item
+Price
+Qty
+Discount
+Amount
+*Mochi Tsubaki Houjicha Cake
+21.00
+1
+0.00
+21.00
+*Lemon Mousse Grape
+19.90
+1
+0.00
+19.90
+*Matcha Strawberry Mochi
+25.00
+0.00
+25.00
+Total Sales ExcTax
+RM65.90
+T away fee
+RM1.00
+Service Charge
+RM0.00
+Tax
+RM0.00
+TOTAL
+RM66.90
+CREDITCARD
+RM66.90
+Scan to claim in next 12 hours

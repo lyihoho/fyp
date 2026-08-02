@@ -1,0 +1,58 @@
+DAILY COFFEE
+Daily Coffee Sungai Besar
+1098535-A
+TAXID:P11-1970-32000006
+No.31.PT1151.Jalan SBBC8
+Sungai Besar Business Centre
+43500 Sungai Besar,
+Selangor.
+RECEIPT
+Running No.
+Bill No900586359
+COMPLETED
+Date16/11/2025
+21:26:10
+Dine In
+00:01:06
+Member Name
+Point Earned
+0.00
+Balance Point
+XCard no.
+XCredit before top up
+0
+Available Balance
+0
+Item Name
+Qty
+Price(RM)
+Tea Set-Earl Grey
+1
+19.90
+Signature Grilled
+1
+24.90
+Chicken Chop
+Black Pepper
+1
+0.00
+S'more Chocolate
+1
+18.90
+Waffle
+Cajun French Fries
+1
+12.90
+Sub Total
+76.60
+SST
+4.58
+Service Charge
+7.66
+Rounding
+0.01
+88.85
+Cash
+Change
+100.00
+11.15

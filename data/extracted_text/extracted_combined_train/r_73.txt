@@ -1,0 +1,62 @@
+AH MA
+AHMAHO LIAO-JONKER
+HreSS 82 JALAN TOKONG.KAMPUNG TIGA MELAKA
+Melaka 75200
+Phene.0124443362
+Company Name.AHCA HO LIAO (MELAKA) SDN BHD
+Business Reglsuration Number1347210P
+SST10NoM10231232000017
+INVOICE
+Table#
+A6
+Receip1Date202509.03 13.3601
+Receipt#0032509051336015
+Cashier HAILEY VOON SI MEI
+Register.4
+Item
+Price
+Qty
+Discount
+Armount
+503J Traditional Kaya Butter Toast 2 pieces
+7.50
+0.00
+7.50
+651 Milk Tea
+Cold
+5.50
+0.00
+5.50
+*104 Nasi Lemak Rendang Chicken
+1480
+1
+0.00
+14.80
+*204 Mee Siam Curry Chicken
+1480
+000
+14.80
+*227 Ah Ma Style Dry Noodles
+E.Pan Mee
+12.90
+1
+0.00
+12.90
+Total Saies Exc Tax)
+RM55.50
+Service Charge (5)
+RM2.78
+Tax
+RM3.33
+Rounding
+RM0.0
+TOTAL
+RM61.60
+PBB-QR
+RM61.60
+SST Summary
+Amount
+Tax
+SST@60%
+55.50
+3.33

@@ -1,0 +1,46 @@
+Sushi Zanmai
+GF-07Ground FloorThe Waterfront
+@Parkcity5 Persiaran Residen, Desa
+Park City52200 Kuala Lumpur
+Tel:012-248 2300
+Super Sushi Sdn Bhd 758027-D
+SST IDB16-1808-31009833
+Tab1e:C2
+PAX:2
+BinNo.:001-1365
+Date:2026/01/01 16:24:20
+Salmon Sushi
+1
+RM6.42
+Unagi Sushi
+1
+RM5.47
+Chawanmushi
+1
+RM6.42
+Salmon Sashimi (S)
+1
+RM13.02
+Sub-Total
+RM31.33
+6% Gov Service Tax
+RM1.88
+Total
+RM33.21
+Rounding
+-RMO.01
+Total after Rounding RM33.20
+Credit Card
+RM33.20
+*********
+*****************
+Approved Credit Card Info
+Card No.
+*****************
+Card Type
+DEBIT
+Approved Amount
+[RM33.20]
+Approva1 Date
+Approval Code
+572444-05

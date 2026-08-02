@@ -1,8 +1,20 @@
 node_modules/
 dist/
 build/
-data/
 venv/
 .env
 .vscode/
 __pycache__/
+
+# Ignore contents of data folder by default
+data/*
+
+# Allow tracking of specific folders in data
+!data/test/
+!data/demotest/
+!data/processed_data/
+data/processed_data/*
+!data/processed_data/combined_train/
+!data/extracted_text/
+data/extracted_text/*
+!data/extracted_text/extracted_combined_train/

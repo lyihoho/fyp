@@ -1,0 +1,49 @@
+watsons
+Watson's Personal Care Stores Sdn Bhd
+Company Reg No.289892V
+SST Reg No.W10-2408-32000022
+Tropika Bukit JalilTPBJ)
+1009295SNSLK SH ROSE PEAC
+9.54
+29714 GAT S/WAX M/HOLD
+17.01
+SUBTOTAL QTY 2
+RM26.55
+HLB-MYDEBITONLIN
+RM26.55
+CHANGE CAS!
+RHO.00
+****************************************
+STATEMENT
+***************************************
+Loyalty acc.number
+9914800**
+Opening Balance
+83
+Earned Points
+26
+Closing Balance
+109
+**********
+************
+CREDIT/DEBIT CARD STATMENT
+****************************************
+MERCHANT ID:048800003373438
+TERMINAL ID:71201415
+BATCH NO:000864
+Card Issuer:MYDEBIT
+CARDNO549186XXXXXX3531
+REF NO:260213201654
+TRACE NO:0O146
+INVOICE NO:004573
+ENTRY TYPE:2
+APPROVAL C0DE:586476
+ACCOUNT TYPE:APPROVED
+ARQC:18F560615812CF35
+AID:A0000006150001
+TVR8000008000
+**********************
+21140100037 13022026 20:16:50 0100 SC010
+8721141020155020260213
+Get your e-invoice here:
+https://e-invoice.watsons.com.my

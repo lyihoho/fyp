@@ -1,0 +1,72 @@
+The Food Merchant @ Pavilion Bukit Jalil
+2016010332181204159-M
+Lot 1.29.00.Leve1 1 Pavilion Bukit Jali1
+No.2,Persiaran Jalil 8.Bandar Bukit Jalil 8
+57000 Kuala LumpurMa laysia
+Te1603-9766 9938 1Fax:603-9766 9939
+SST I0W10-2508-32002426
+Receint No.:000PBJ-P05000683267
+StaffNOR ANIS NAJWA
+Trans:
+683245
+Date:12/05/26 6:34
+Description
+Amount
+Barcode:
+9556001313898
+NESCAFE GOLD 2IN1 CA unit
+17.90
+Z
+9556058000215
+MSM PRAI ICING SUGAR unit
+3.00
+Barcode:
+9300658406959
+DAIRY FARMERS THICK unit
+9.60
+Z
+Barcode:
+8888010200595
+SCS UNSALTED BUTTER unit
+18.50
+Z
+Barcode:
+016000207776
+BETY CROCKER SUPERM unit
+13.05
+2
+Barcode:
+9556627000134
+STAR FLAVOUR VANILLA unit
+3.00
+Z
+I-TFM INSTORE BLUE KE
+-0.11
+Barcode:
+9556627000554
+STAR COLOUR TORTUNE Unit
+3.00 Z
+I-TFM INSTORL SLUE KE
+-0.11
+Barcode:
+9555114005515
+MERAH GULA URAI 7OG unit
+3.25Z
+SubtotalRM
+71.08
+Total RM
+71.08
+I-TFM INSTORE BLUE 0.22
+MBB Terminal
+71.10
+Rounding
+0.02
+VAT%
+Net.Amt
+VAT
+Amount
+0
+71.08
+0.00
+71.08
+Piease retain this receipt for exchange & refund

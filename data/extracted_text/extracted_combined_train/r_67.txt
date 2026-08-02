@@ -1,0 +1,48 @@
+Your Number:0239
+1 FASTFOOD SHOP SDN.BHD.
+1144157-H
+Lot L1.31.00.2.Persiaran Jalil 8Bukit
+57000 Kuala Lumpur
+Service Tax IDNoJ86-1808-32000012
+Invoice
+Document No.:
+BJ01-130191
+Member:
+Member Point:
+Earn-Redeem Point:
+Date:
+28/12/202508:16:55PM
+Cashier:
+325007
+Tracking Doc No.
+Description
+Qty
+Price
+Disc
+Amount
+RM
+RM
+KL+
+1.00
+16.90
+0.00
+16.90
+#*
+#3 pcs
+#
+Sub Total Exclusive Tax
+15.94
+SERVICE TAX 6%
+0.96
+Service Charge
+0.00
+Rounding Adjustment
+0.00
+Rounded Total (RM):
+16.90
+MASTERVISA
+16.90
+Remarks:
+Please Come Again,Thank You!
+Goods Sold Are Not Returnable
+Please scan QR to request E-Invoice

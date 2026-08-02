@@ -1,0 +1,63 @@
+487
+KFC Sen Kembangan
+Tel 0389584220
+STOREID 1010050
+www.kfc.com.my
+QSRSTORES SDN BHD(1098054-H)
+KFC Free W-Fi-Connecl toKFC-WiFi
+SVC TAX1DW10-1808-32000273
+Check 330083 (Take Away)
+SSK#02
+24Dec 25 20 46.47
+1
+2-PCJAPANESE YUZU
+19.99
+CRUNCHCOMBO
+1x Japanese Yuzu Crunch
+1 x Japanese Yuzu Crunch
+1x Whipped Potato(4oz
+1xColeslaw (4oz)
+1xCoca-Cola M
+-
+5PCCHICKEN
+30.99
+5-pc Onginal Chicken
+1 x Plastc bag
+20
+MyDebit
+'0
+Totai item sold
+Sub Total
+48.29
+Servce Tax 6%
+289
+Total
+5118
+Rounding Adjustment
+0.02
+Payment
+5120
+Cashless Tiansaction Infoimation
+KFCI
+2512240050020008501
+CARD IYPE
+MyDebit
+TiD
+12820773
+MD
+000001909363095
+DAIE
+251:24
+TIME
+204652
+CARDNUM
+5491860000003531
+EXPIRYDATE
+0000
+APPRCODE
+583935
+RREFNUM
+000021014322
+BATCHIU
+INVNUM
+000001

@@ -1,0 +1,37 @@
+Your order number is
+158
+Gerbang Alaf Restaurants Sdn Bhd
+65351-M)
+Licensee of McDonald's
+Leve1 6,Bangunan TH. Damansara Uptcwn3
+No.3,Jalan SS21/39,47400 Peta1ing Jaya
+Selangor
+CP IDNo:B16-1808-31010640
+McDona ld's Sabak Bernam DT #344
+Tel No.03-3224-3024
+TAX INVOICE
+MFY Side 1 
+INV# 103443200012391
+ORD #58-CS0#1-03/06/202308:59:07
+QTY ITEM
+TCTAL
+1 2HotCakes
+9.34
+2 BM CrispyChicMuff
+20.66
+2 S 8oz HotMilo
+1 BM SauMuff
+9.39
+1 S 8oz HotMi lo
+Subtotal
+39.39
+Eat-In Total incl Tax)
+41.75
+Total Rounded
+41.75
+Cash Tendered
+50.00
+Change
+8.25
+TOTAL 6% Service Tax
+2.36

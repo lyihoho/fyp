@@ -1,0 +1,32 @@
+Order Number
+LiHO TEA
+152
+LH004-LiHO TEA 1 Utama Shopping Centre
+LIHOBESUTOSDNBHD1421489-K)
+SST ID:W10-2210-32000095
+INVOICE
+BillNo:
+4066146
+Take Away
+Date:
+19/05/2023
+COMPLETED
+16.18.03
+Item Name
+Qty
+Price (RM)
+D1 Brown Sugar Lover-R
+1
+9.90
+50%Sugar
+0.00
+Sub Total
+9.34
+Service Tax (6%)
+0.56
+Rounding
+0.00
+Grand Total
+9.90
+Touch N Go
+9.90

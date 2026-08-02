@@ -1,0 +1,34 @@
+dno
+Dao @ Pavilion BJ
+Cajolly Group Sdn Bhd
+1377292-M
+Lot2.18.00Level 2Pavilion Bukit Jalil
+Persiaran Bukit Jalil 8
+Bandar Bukit Jalil,57000 Kuala Lumpur
+SST IDB16-2109-32100017
+Sales Invoice
+Mar 272026 8:07PM
+JOYCE
+TA631
+Receipt:260327XRV6KDV
+Take Away
+Table:TAKE AWAY
+Pax:3
+2x Dac Fu Fah Brown
+RM11.20
+-Takeaway RM5.60
+Subtatal
+RM11.20
+6%SS1
+RMO.67
+RM-0.02
+Rounding
+Total
+RM11.85
+RM11.85
+Amount
+RM11.85
+MAE-QR
+Paid
+Payment Status
+Thanks & We lcome

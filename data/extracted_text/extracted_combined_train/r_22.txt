@@ -1,0 +1,48 @@
+165
+Gerbang Alaf Restaurants Sdn Bhd
+65351-M
+Licensee of McDona ld's
+Leve1 6.BangLnan TH.Damansara Uptown3
+No.3Ja lan Ss21/39.47400 Petaling Jaya
+Selangor
+CP1DHC:B16-1808-31010640
+MDonald's Mob DI#149
+1e NO.03-8941-9909
+TAX INVOICE
+MFY Side 3
+INV101491900012763
+DrderKey# P0S0018:333432821
+DRD165PFG#19-19/04/2026 23:55:06
+QIY LIEN
+TOTAL
+i 5pcs Tend rsReg
+16.56
+1 Nacho treese Sauce
+Barbecue sauce
+Subtotal
+16.56
+TakeCut Tota (inc Tax
+17.55
+17.55
+Mstercard
+TOTAi. 6% Service lax
+0.99
+Cashless Lransaction iniormat ion
+DATE&TIME
+19/04/2026
+23:55:22
+BATCH NLIM
+000231
+INVOICL
+088329
+HOST
+MBB
+MID
+000027031217607
+TID
+13052806
+TYPE
+SALE
+CARD NAME
+MASTERCARD
+CARD

@@ -1,0 +1,63 @@
+JAYA GROCER
+TRENDCELL SDN BHD544047-T-JGTT
+610.Ground Floor
+Jalan Jali1 Perkasa 3. Bukit Jalil
+57000 Kuala Lunpur
+TEL03-97642854
+Invoice No JGT1260271960483
+900004(SCO CASHIER 4)
+83
+604
+27/01/2026 19:25:52
+MAGNOLIA UHT FRESH MILK 1LIT
+9556040600638 UNIT
+1x7.30
+7.30
+016.49
+-0.81
+Iten 1
+SubTotal
+6.49
+Qty 1
+Spec.Disc
+0.00
+Saving 0.81
+Rounding
+0.01
+Total
+6.50
+MAYBANK QR
+6.50
+Change
+0.00
+--Cashless transaction infornation
+ApprCode
+9f7d42c62e274c77bf15afbb8af85abe
+InvoiceNo
+MBBQR069003542
+ResponseCodes
+00
+TraceNo
+MBBQR069003542
+TernId
+80180430
+CardType
+MAYBANK QR
+Entrylype
+QR Transaction
+Menber No 
+....0c19
+Grab Menber Validated
+27/01/2026 19:25:52
+THANK YOU PLEASE COME AGAIN
+We sell only the finest quality goods.
+If you are not satisfied with your purchase. please
+come back for a refund or exchange uith the receiet,
+Subject to Jaya Grocer's Exchange and Refund Policy.
+Find out more on: info.jayagrocer.con/refund_returns/
+Follow us on Facebook/Instagran
+and tagged us #jayagrocer
+FOR E-INUOICE
+Please access to
+httes://jayagrocer.invoice2e.ny
+to ganerate your a-invoice

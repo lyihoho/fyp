@@ -1,0 +1,62 @@
+JAYA GROCER
+TRENDCELL SDN BHD544047-T-JGTT
+G10.Ground Floor.
+Jalan Jalil Perkasa 3.Bukit Jalil.
+57000 Kuala Lunpur
+TEL03-97642854
+Invoice No JG11261331960157
+900001SCO CASHIER 1
+57
+601
+13/05/2026 19:32:10
+SCS UNSAL TED BUTTER 227G1
+8888010200595 UNIT
+1x18.50
+18.50
+Iten 1
+Sublotal
+18.50
+aty1
+Spec.Disc
+0.00
+Saving 0.00
+Rounding
+0.00
+Total
+18.50
+MAYBANK QR
+18.50
+Change
+0.00
+Cashless transaction information
+ApprCode
+7349e07831088479a5216a66ada9000e
+InvoiceNo
+MBBQR076749097
+ResponseCodes
+00
+TraceNo
+MBBQR076749097
+TernId
+80180431
+CardType
+HAYBANK OR
+EntryType
+QR Transaction
+Menber No :
+0c19
+Grab Menber Validated
+13/05/2026 19:32:10
+THANK YOU PLEASE COME AGAIN
+Ve sell only the finest quality goods.
+If you are not satisfied uith your purchase.please
+come back for a refund or exchange with the receipt
+Subject to Jaya Grocer's Exchange and Refund Policy.
+Find out more on info.jayagrocer.con/refund.returns/
+Exchange & Refund Polic
+Follou us on Facebook/Instagran
+and tagged us Jayagrocer
+FOR E-INUOICE
+Plaase accass to
+https://jayagrocer.inuoice2e.ny
+to generate your e-invoice

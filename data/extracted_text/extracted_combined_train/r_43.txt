@@ -1,0 +1,66 @@
+DYNAMIC POWER ENTERPRISE
+L01P15571
+LEBUHRAYA PUCHONG-SG BESI
+BKIJALL5/000
+KUALA LUMPUE
+Company NO:PG0149392-U
+Shte. 2138
+relephone: 03-89966736
+19FEB202610:29PM
+IN.OICE
+Card Name
+MyDebit
+Terminal
+84213823
+Site Id
+MY8888123456789
+Site Iran No
+097469
+Reference No
+53fed1
+Receipt No
+024581
+Batch No
+775
+Entry Mode
+Contactless
+Card
+.0688
+App
+MyDebit
+Sey Numdaer
+01
+App 10
+AOO0000G150001
+App cryp
+79121274488A2CF7
+Auth Code
+596821
+veriticalon
+ PIN REQUIRED
+ALVEFUEDEVIGO
+FuelSave 95Pp 15
+RM59.72
+23.5101102.540/1
+BUDIS5 Subsily
+RM12.93
+23.51011M0.550/1
+Card
+RM46.79
+TOTAL
+RM46.79
+SUBSIDY INEORMAIION
+Pump Price
+RM2.540/L
+Subsidy Pr ice
+RM1.990/L
+Prevlous Bal
+300.000
+Rema ining Bal
+276.490L
+CDB Ref NO.
+052581/69200200
+Iiada kad Kesel iaan
+No loyal ty card
+Thank You
+Have a Safe Journey

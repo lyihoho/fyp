@@ -1,0 +1,66 @@
+1181449-H
+S045A,2ndFloor
+Mid Valley Megamall,
+59200 kuala Lumpur
+TAX INVOICE
+Table:
+1
+Dine In
+Bill No.
+420270435
+COMPLETED
+Cashier:
+Novi
+Member Nam
+Date:
+03/01/2020
+16:48:45
+Unit
+Sub Total
+ItemName
+Q-y
+Price
+(RM)
+Vegetables
+1.30
+5.50
+7.15
+Meat/Seafood
+1.35
+7.50
+10.13
+Spicy Baby
+1.35
+0
+Carrot Noodle
+1.00
+3.50
+3.50
+Vegetables
+1.50
+5.50
+8.25
+Meat/Seafood
+1.85
+7.50
+13.88
+Spicy Baby
+1.85
+0
+Takeaway Box
+2.00
+.94
+1.88
+Sub Total
+44.79
+Discount
+0.00
+Rounding
+0.02
+SST
+2.69
+47.50
+EWallelTNGWALLET
+47.50
+RM).
+260103084

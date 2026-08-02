@@ -1,0 +1,61 @@
+KKV
+Cashier.Balqees
+Store NameKK V Bukit Bintang Kuala Lump
+Machine Number: MYVoo117
+Goods Name
+Unit Price
+QuantityAmount
+KV-I(Intemational)PACKING BAGS-L.yellow
+RM1.00
+RM100
+Miaow Miaow Flame-Korean Spicy Flav Prawn
+Crackers 50g
+RM2.50
+1.
+RM2.50
+Lime Cheese Com Crisps 30g
+RM5.90
+RM2.90
+/
+Other Discounts
+RM3.00
+Cheese Rice Crackers 30g
+RM5.90
+1
+RM5.90
+God of darkness Small Bowl of noodles hot and
+sour flavor)
+RM3.90
+2RM7.80
+God of darkness Small Bowl of noodles Tomato
+flavor)
+RM3.90
+2
+RM7.80
+Sable staff Cookie Chocolate Flavor 96g
+RM8.90
+2RM11.80
+Other Discounts
+-RM0.00
+Plush Toy-Chubby Brown bear 22CM
+RM29.90
+1RM29.90
+Plush Toy-Chubby Polar bear 22CM
+RM29.90
+1RM29.90
+Type:9
+Quantity:12
+Original Price
+RM108.50
+Accounts Receivable
+RM99.50
+Discounted:
+RM9.00
+Round Down
+RM0.00
+Bank Card
+RM99.50
+Activity NameFLASH SALE ON SPECIFIC ITEMS
+Receiptnumber:SGKOK630078284146941952
+Transaction time:2024-03-23 16:27:19
+If there is a goods quality problen

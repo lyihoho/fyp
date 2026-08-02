@@ -1,0 +1,34 @@
+dao
+Dao @ Pavilion BJ
+Cajolly Group Sdn Bhd
+1377292-M
+lot2.18.00Level 2,Pavilion Bukit Jali
+Persiaran Bukit Jalil 8
+Bandar Bukit Jalil57000 Kuala Lumpur
+SST 1D:B16-2109-32100017
+Sales Invoice
+Feb220267:51PM
+Yan Xing
+TA632
+Receipt:260202XRV038L
+Take Away
+Table:TAKE AWAY
+Pax:1
+2x Dao Fu Fah Bron
+RM11.20
+-Takeaway RM5.60
+Subtotal
+RM11.20
+6%SST
+RMO.67
+Rounding
+RM-0.02
+Total
+RM11.85
+Amount
+M11.85
+RM11.85
+MAE-QR
+Paid
+Payment Status
+Thanks & Welcome
