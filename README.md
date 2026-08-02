@@ -4,7 +4,7 @@ An automated financial compliance routing pipeline developed as a BSc (Honours) 
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 * **Visual & Textual Duplicate Check (Gate 1)**: Runs parallel dual-engine verification. Visually compares receipt layout matrices using **OpenCV ORB** matching (Hamming distance) and textually using **Levenshtein Edit Distance** to block recaptured photo duplicates.
 * **Tampering & Math Auditor (Gate 2)**: Scans transaction totals and individual item lists. Utilizes place-value math rules to detect manual pen alterations (e.g., prepending or changing digits).
@@ -13,7 +13,7 @@ An automated financial compliance routing pipeline developed as a BSc (Honours) 
 
 ---
 
-## 📂 Repository Directory Layout
+## Repository Directory Layout
 
 ```text
 fyp/
@@ -37,7 +37,7 @@ fyp/
 
 ---
 
-## 🛠️ Setup & Installation
+## Setup & Installation
 
 ### **1. Clone the repository**
 ```bash
@@ -60,7 +60,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🏃 How to Run the System
+## How to Run the System
 
 ### **Option A: Run the Live Gradio Web UI (api.py)**
 To start the interactive web application, run:
@@ -86,5 +86,5 @@ python src/train_model.py
 
 ---
 
-## ⚖️ License & Attribution
+## Attribution
 Developed by **Lim Yi** (ID: 22078430) as a capstone project for the Department of Computing and Information Systems, Sunway University.
